@@ -1,0 +1,44 @@
+name: CI - Build et Tests Backend
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-gestion-git:
+    name: Build gestion-git
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Configurer Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build avec Maven
+        working-directory: devMedic/ms-Backend/gestionGit
+        run: mvn clean compile -B
+
+  build-gestion-user:
+    name: Build gestion-user
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Configurer Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build avec Maven
+        working-directory: devMedic/ms-Backend/gestionUser
+        run: mvn clean compile -B
