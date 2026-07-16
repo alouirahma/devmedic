@@ -1,0 +1,43 @@
+# traefik.yml
+
+global:
+  checkNewVersion: true
+  sendAnonymousUsage: false
+
+entryPoints:
+  web:
+    address: ":80"
+   # http:
+     # redirections:
+     #   entryPoint:
+        #  to: web
+          #scheme: http
+         # permanent: false
+
+  #websecure:
+   # address: ":443"
+
+  # Dashboard Traefik
+  traefik:
+    address: ":8080"
+
+api:
+  dashboard: true
+  insecure: true                   # ← Changé en true pour tester facilement
+
+log:
+  level: DEBUG                     # ← Mis en DEBUG pour voir plus d'infos
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    network: traefik-net
+
+#certificatesResolvers:
+  #letsencrypt:
+    #acme:
+      #email: "rahmaaluoi@gmail.tn"          #
+      #storage: "/letsencrypt/acme.json"
+      #httpChallenge:
+        #entryPoint: web

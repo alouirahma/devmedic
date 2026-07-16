@@ -1,0 +1,134 @@
+<div class="login-container">
+
+  <!-- Left side -->
+  <div class="login-left">
+    <div class="login-brand">
+      <div class="logo-box">
+        <span class="logo-dm">Dm</span>
+        <div class="logo-line"></div>
+      </div>
+      <div class="logo-text-group">
+        <span class="logo-dev">Dev</span>
+        <span class="logo-medic">Medic</span>
+      </div>
+    </div>
+
+    <h1 class="login-title">
+      Analysez votre activité<br>
+      <span style="color: #378ADD;">code en temps réel</span>
+    </h1>
+
+    <p class="login-subtitle">
+      Plateforme d'analyse intelligente de l'activité
+      et de la qualité du code source GitHub & GitLab.
+    </p>
+
+    <div class="login-stats">
+      <div class="stat">
+        <span class="stat-num">10k+</span>
+        <span class="stat-lbl">Commits analysés</span>
+      </div>
+      <div class="stat">
+        <span class="stat-num">500+</span>
+        <span class="stat-lbl">Repositories</span>
+      </div>
+      <div class="stat">
+        <span class="stat-num">50+</span>
+        <span class="stat-lbl">Équipes</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right side -->
+  <div class="login-right">
+    <div class="login-card">
+
+      <h2 class="card-title">Connexion</h2>
+      <p class="card-subtitle">Accédez à votre espace DevMedic</p>
+
+      <!-- Formulaire Admin -->
+      @if (!showTokenInput) {
+        <div class="form-group">
+          <label>Nom d'utilisateur</label>
+          <input
+            type="text"
+            [(ngModel)]="username"
+            placeholder="Entrez votre username"
+            class="form-control"
+            (keyup.enter)="loginWithCredentials()"
+          />
+        </div>
+
+        <div class="form-group mt-2">
+          <div class="label-row">
+            <label>Mot de passe</label>
+            <a class="forgot-link" (click)="forgotPassword()">
+              Mot de passe oublié ?
+            </a>
+          </div>
+          <input
+            type="password"
+            [(ngModel)]="password"
+            placeholder="Entrez votre mot de passe"
+            class="form-control"
+            (keyup.enter)="loginWithCredentials()"
+          />
+        </div>
+
+        <button
+          class="btn-primary mt-3 w-100"
+          (click)="loginWithCredentials()"
+          [disabled]="loading">
+          @if (loading) {
+            <span class="spinner-sm"></span>
+            Connexion...
+          } @else {
+            Se connecter
+          }
+        </button>
+
+        <div class="divider"><span>ou continuer avec</span></div>
+
+        <div class="oauth-row">
+          <button class="btn-oauth github" (click)="loginWith('github')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+            </svg>
+            GitHub
+          </button>
+
+          <button class="btn-oauth gitlab" (click)="loginWith('gitlab')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M22.65 14.39L12 22.13 1.35 14.39a.84.84 0 01-.3-.94l1.22-3.78 2.44-7.51A.42.42 0 014.83 2a.43.43 0 01.58 0 .42.42 0 01.12.18l2.44 7.49h8.06l2.44-7.49A.42.42 0 0119.15 2a.43.43 0 01.58.18l2.44 7.51 1.22 3.78a.84.84 0 01-.74.92z"/>
+            </svg>
+            GitLab
+          </button>
+        </div>
+      }
+
+      <!-- Token input -->
+      @if (showTokenInput) {
+        <div class="form-group">
+          <label>Token JWT</label>
+          <textarea
+            [(ngModel)]="token"
+            placeholder="Collez votre token JWT ici..."
+            rows="4"
+            class="form-control token-input">
+          </textarea>
+          <button class="btn-primary mt-3 w-100" (click)="loginWithToken()">
+            Se connecter
+          </button>
+          <button class="btn-link mt-2 w-100" (click)="showTokenInput = false">
+            Retour
+          </button>
+        </div>
+      }
+
+      @if (error) {
+        <div class="alert-error mt-2">{{ error }}</div>
+      }
+
+    </div>
+  </div>
+</div>

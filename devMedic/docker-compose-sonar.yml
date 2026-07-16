@@ -1,0 +1,38 @@
+
+version: "3.8"
+
+services:
+
+  sonarqube:
+    image: sonarqube:community
+    container_name: sonarqube
+    restart: unless-stopped
+
+    ports:
+      - "9000:9000"
+
+    environment:
+      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
+
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_logs:/opt/sonarqube/logs
+
+    networks:
+      - traefik-net
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.sonarqube.rule=Host(`sonar.localhost`)"
+      - "traefik.http.routers.sonarqube.entrypoints=web"
+      - "traefik.http.services.sonarqube.loadbalancer.server.port=9000"
+
+volumes:
+  sonarqube_data:
+  sonarqube_extensions:
+  sonarqube_logs:
+
+networks:
+  traefik-net:
+    external: true

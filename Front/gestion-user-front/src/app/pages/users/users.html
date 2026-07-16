@@ -1,0 +1,297 @@
+<div class="users-page">
+
+  <!-- Header -->
+  <div class="page-header">
+    <div>
+      <h4>Utilisateurs</h4>
+    </div>
+    <button class="btn-add" (click)="showCreateModal = true">
+      <i class="bi bi-plus-lg"></i>
+      Ajouter un utilisateur
+    </button>
+  </div>
+
+  <!-- Filtres -->
+  <div class="dm-card filters-card">
+    <div class="filters">
+      <div class="search-box">
+        <i class="bi bi-search"></i>
+        <input
+          type="text"
+          [(ngModel)]="searchQuery"
+          (ngModelChange)="search()"
+          placeholder="Rechercher un utilisateur..."
+        />
+      </div>
+      <select [(ngModel)]="selectedRole" (ngModelChange)="search()" class="role-filter">
+        <option value="">Tous les rôles</option>
+        @for (role of roles; track role) {
+          <option [value]="role">{{ role }}</option>
+        }
+      </select>
+      <select [(ngModel)]="selectedSeniority" (ngModelChange)="search()" class="seniority-filter">
+        <option value="">Toutes séniorités</option>
+        @for (level of seniorityLevels; track level) {
+          <option [value]="level">{{ translateSeniority(level) }}</option>
+        }
+      </select>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="dm-card">
+    <div class="card-header">
+      <h6>Liste des utilisateurs</h6>
+      <span class="badge-count">{{ filteredUsers.length }}</span>
+    </div>
+
+    @if (loading) {
+      <div class="loading">
+        <div class="spinner"></div>
+        <span>Chargement...</span>
+      </div>
+    }
+
+    @if (!loading && filteredUsers.length > 0) {
+      <table class="dm-table">
+        <thead>
+          <tr>
+            <th>Utilisateur</th>
+            <th>Email</th>
+            <th>Rôle</th>
+            <th>Séniorité</th>
+            <th>Expérience</th>
+            <th>Compétence</th>
+            <th>Statut</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (user of filteredUsers; track user.id) {
+            <tr>
+              <td>
+                <div class="user-cell">
+                  <div class="avatar">{{ getInitials(user.username) }}</div>
+                  <div>
+                    <div class="user-name">{{ user.username }}</div>
+                    <div class="user-id">ID: {{ user.id }}</div>
+                  </div>
+                </div>
+              </td>
+              <td class="text-muted">{{ user.email }}</td>
+              <td>
+                <span class="role-badge" [class]="getRoleBadgeClass(user.roles)">
+                  {{ getMainRole(user.roles) }}
+                </span>
+              </td>
+              <td>
+                @if (user.hrData) {
+                  <span class="seniority-badge" [class]="getSeniorityBadgeClass(user.hrData.seniorityLevel)">
+                    {{ translateSeniority(user.hrData.seniorityLevel) }}
+                  </span>
+                } @else {
+                  <span class="badge-missing">Non défini</span>
+                }
+              </td>
+              <td>
+                @if (user.hrData) {
+                  <span class="experience-value">{{ user.hrData.yearsOfExperience }} ans</span>
+                } @else {
+                  <span class="text-muted">—</span>
+                }
+              </td>
+              <td>
+                @if (user.hrData) {
+                  <span class="skill-badge">{{ user.hrData.primarySkill }}</span>
+                } @else {
+                  <span class="text-muted">—</span>
+                }
+              </td>
+              <td>
+                <span class="status-badge active">Actif</span>
+              </td>
+              <td>
+                <div class="actions">
+                  <button class="action-btn hr" (click)="openUserHrModal(user)" title="Fiche RH">
+                    <i class="bi bi-person-badge"></i>
+                  </button>
+                  <button class="action-btn edit" (click)="openUpdateModal(user)" title="Modifier">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                  <button class="action-btn delete" (click)="confirmDelete(user)" title="Supprimer">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+
+    @if (!loading && filteredUsers.length === 0) {
+      <div class="empty-state">
+        <i class="bi bi-people"></i>
+        <p>Aucun utilisateur trouvé</p>
+      </div>
+    }
+  </div>
+
+  <!-- Modal Créer -->
+  @if (showCreateModal) {
+    <div class="modal-overlay" (click)="showCreateModal = false">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h6>Ajouter un utilisateur</h6>
+          <button class="close-btn" (click)="showCreateModal = false">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Username</label>
+            <input type="text" [(ngModel)]="newUser.username"
+                   class="form-control" placeholder="username"/>
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" [(ngModel)]="newUser.email"
+                   class="form-control" placeholder="email@example.com"/>
+          </div>
+          <div class="form-group">
+            <label>Rôle</label>
+            <select [(ngModel)]="newUser.roles[0]" class="form-control">
+              @for (role of roles; track role) {
+                <option [value]="role">{{ role }}</option>
+              }
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-cancel" (click)="showCreateModal = false">Annuler</button>
+          <button class="btn-confirm" (click)="createUser()">Créer</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Modal Supprimer -->
+  @if (showDeleteModal) {
+    <div class="modal-overlay" (click)="showDeleteModal = false">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h6>Confirmer la suppression</h6>
+          <button class="close-btn" (click)="showDeleteModal = false">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p>Voulez-vous vraiment supprimer <strong>{{ selectedUser?.username }}</strong> ?</p>
+          <p class="text-muted">Cette action est irréversible.</p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-cancel" (click)="showDeleteModal = false">Annuler</button>
+          <button class="btn-delete" (click)="deleteUser()">Supprimer</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Modal Mise à jour -->
+  @if (showUpdateModal) {
+    <div class="modal-overlay" (click)="showUpdateModal = false">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h6>✏️ Modifier l'utilisateur</h6>
+          <button class="close-btn" (click)="showUpdateModal = false">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Nom d'utilisateur</label>
+            <input type="text" class="form-control" [(ngModel)]="updateUser.username"/>
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" class="form-control" [(ngModel)]="updateUser.email"/>
+          </div>
+          <div class="form-group">
+            <label>Rôles</label>
+            <div class="roles-checkboxes">
+              @for (role of roles; track role) {
+                <div class="form-check">
+                  <input class="form-check-input" 
+                         type="checkbox" 
+                         [value]="role"
+                         [checked]="isRoleSelectedForUpdate(role)"
+                         (change)="toggleRoleForUpdate(role, $event)">
+                  <label class="form-check-label">{{ role }}</label>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-cancel" (click)="showUpdateModal = false">Annuler</button>
+          <button class="btn-confirm" (click)="updateUserAction()">Mettre à jour</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Modal Fiche RH -->
+  @if (showUserHrModal) {
+    <div class="modal-overlay" (click)="showUserHrModal = false">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h6><i class="bi bi-person-badge"></i> Fiche RH - {{ selectedUser?.username }}</h6>
+          <button class="close-btn" (click)="showUserHrModal = false">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="info-section">
+            <div class="info-row">
+              <span class="info-label">Email:</span>
+              <span class="info-value">{{ selectedUser?.email }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Rôle principal:</span>
+              <span class="info-value">{{ getMainRole(selectedUser?.roles) }}</span>
+            </div>
+          </div>
+          <hr>
+          <div class="form-group">
+            <label>Niveau de séniorité</label>
+            <select [(ngModel)]="newUserHr.seniorityLevel" class="form-control">
+              @for (level of seniorityLevels; track level) {
+                <option [value]="level">{{ translateSeniority(level) }}</option>
+              }
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Années d'expérience</label>
+            <input type="number" [(ngModel)]="newUserHr.yearsOfExperience"
+                   class="form-control" min="0" max="50"/>
+          </div>
+          <div class="form-group">
+            <label>Compétence principale</label>
+            <select [(ngModel)]="newUserHr.primarySkill" class="form-control">
+              <option value="">Sélectionner une compétence</option>
+              @for (skill of skillsList; track skill) {
+                <option [value]="skill">{{ skill }}</option>
+              }
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-cancel" (click)="showUserHrModal = false">Annuler</button>
+          <button class="btn-confirm" (click)="saveUserHr()">
+            {{ userHrData ? 'Mettre à jour' : 'Créer la fiche' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

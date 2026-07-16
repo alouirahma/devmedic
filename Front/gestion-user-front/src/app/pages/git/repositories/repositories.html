@@ -1,0 +1,453 @@
+<div class="repos-page" [class.drawer-open]="drawerVisible">
+
+  <!-- Layout principal -->
+  <div class="main-content">
+
+    <!-- Header -->
+    <div class="page-header">
+      <div>
+        <h1>Repositories</h1>
+        <p>Gérez vos repositories GitHub et GitLab</p>
+      </div>
+      @if (selectedRepos.size > 0) {
+        <button class="btn-primary" (click)="analyzeSelected()">
+          <i class="bi bi-cpu-fill"></i>
+          Analyser ({{ selectedRepos.size }})
+        </button>
+      }
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon total"><i class="bi bi-folder2-open"></i></div>
+        <div class="stat-info">
+          <div class="stat-value">{{ totalCount }}</div>
+          <div class="stat-label">Total</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon github"><i class="bi bi-github"></i></div>
+        <div class="stat-info">
+          <div class="stat-value">{{ githubCount }}</div>
+          <div class="stat-label">GitHub</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon gitlab"><i class="bi bi-gitlab"></i></div>
+        <div class="stat-info">
+          <div class="stat-value">{{ gitlabCount }}</div>
+          <div class="stat-label">GitLab</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon public"><i class="bi bi-unlock-fill"></i></div>
+        <div class="stat-info">
+          <div class="stat-value">{{ publicCount }}</div>
+          <div class="stat-label">Publics</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon private"><i class="bi bi-lock-fill"></i></div>
+        <div class="stat-info">
+          <div class="stat-value">{{ privateCount }}</div>
+          <div class="stat-label">Privés</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filtres -->
+    <div class="filters-bar">
+      <div class="search-box">
+        <i class="bi bi-search"></i>
+        <input type="text" placeholder="Rechercher un repository..." (input)="onSearch($event)" />
+      </div>
+      <div class="filter-group">
+        <button [class.active]="selectedProvider === 'ALL'" (click)="filterByProvider('ALL')">Tous</button>
+        <button [class.active]="selectedProvider === 'GITHUB'" (click)="filterByProvider('GITHUB')">
+          <i class="bi bi-github"></i> GitHub
+        </button>
+        <button [class.active]="selectedProvider === 'GITLAB'" (click)="filterByProvider('GITLAB')">
+          <i class="bi bi-gitlab"></i> GitLab
+        </button>
+      </div>
+      <div class="filter-group">
+        <button [class.active]="selectedVisibility === 'ALL'" (click)="filterByVisibility('ALL')">Tous</button>
+        <button [class.active]="selectedVisibility === 'PUBLIC'" (click)="filterByVisibility('PUBLIC')">
+          <i class="bi bi-unlock-fill"></i> Publics
+        </button>
+        <button [class.active]="selectedVisibility === 'PRIVATE'" (click)="filterByVisibility('PRIVATE')">
+          <i class="bi bi-lock-fill"></i> Privés
+        </button>
+      </div>
+    </div>
+
+    <!-- Loading / Error / Empty States -->
+    @if (loading) {
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Chargement des repositories...</p>
+      </div>
+    }
+
+    @if (error) {
+      <div class="error-state">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <p>{{ error }}</p>
+      </div>
+    }
+
+    @if (!loading && !error) {
+      @if (filteredRepos.length === 0) {
+        <div class="empty-state">
+          <i class="bi bi-folder2-open"></i>
+          <p>Aucun repository trouvé</p>
+        </div>
+      } @else {
+
+        <!-- Selection Bar -->
+        @if (selectedRepos.size > 0) {
+          <div class="selection-bar">
+            <span><i class="bi bi-check2-square"></i> {{ selectedRepos.size }} repository(s) sélectionné(s)</span>
+            <button class="btn-clear" (click)="clearSelection()">
+              <i class="bi bi-x-lg"></i> Désélectionner tout
+            </button>
+          </div>
+        }
+
+        <!-- Tableau des repositories -->
+        <div class="repos-table-wrapper">
+          <table class="repos-table">
+            <thead>
+              <tr>
+                <th class="th-check">
+                  <input type="checkbox"
+                    [checked]="isAllSelected()"
+                    [indeterminate]="isIndeterminate()"
+                    (change)="toggleAll($event)" />
+                </th>
+                <th>Repository</th>
+                <th>Provider</th>
+                <th>Branche par défaut</th>
+                <th>Visibilité</th>
+                <th>Dernière analyse</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (repo of paginatedRepos; track repo.id) {
+                <tr [class.selected]="selectedRepos.has(repo.id)">
+                  <td class="td-check" (click)="$event.stopPropagation()">
+                    <input type="checkbox"
+                      [checked]="selectedRepos.has(repo.id)"
+                      (change)="toggleRepo(repo.id)" />
+                  </td>
+                  <td (click)="toggleRepo(repo.id)">
+                    <div class="repo-name">
+                      <i class="bi" [class]="getProviderIcon(repo.provider)"></i>
+                      <div>
+                        <div class="name">{{ repo.name }}</div>
+                        <div class="owner">{{ repo.owner }}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td (click)="toggleRepo(repo.id)">
+                    <span class="badge" [class]="getProviderClass(repo.provider)">{{ repo.provider }}</span>
+                  </td>
+                  <td (click)="toggleRepo(repo.id)">
+                    <span class="branch-chip">
+                      <i class="bi bi-diagram-2"></i>
+                      {{ repo.defaultBranchName || 'main' }}
+                    </span>
+                  </td>
+                  <td (click)="toggleRepo(repo.id)">
+                    @if (repo.private) {
+                      <span class="badge badge-private"><i class="bi bi-lock-fill"></i> Privé</span>
+                    } @else {
+                      <span class="badge badge-public"><i class="bi bi-unlock-fill"></i> Public</span>
+                    }
+                  </td>
+                  <td class="date-cell" (click)="toggleRepo(repo.id)">{{ formatDate(repo.lastAnalyzedAt) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <!-- ✅ PAGINATION CORRIGÉE -->
+        @if (filteredRepos.length > 0) {
+          <div class="pagination-section">
+            <div class="pagination-info">
+              <i class="bi bi-info-circle"></i>
+              @if (totalPages > 1) {
+                {{ (currentPage - 1) * itemsPerPage + 1 }} -
+                {{ Math.min(currentPage * itemsPerPage, filteredRepos.length) }}
+                sur {{ filteredRepos.length }} repository(s)
+              } @else {
+                {{ filteredRepos.length }} repository(s) trouvé(s)
+              }
+            </div>
+            @if (totalPages > 1) {
+              <div class="pagination-controls">
+                <div class="items-per-page">
+                  <label>Afficher :</label>
+                  <select [value]="itemsPerPage" (change)="changeItemsPerPage($event)">
+                    @for (size of pageSizes; track size) {
+                      <option [value]="size">{{ size }}</option>
+                    }
+                  </select>
+                </div>
+                <div class="pagination-buttons">
+                  <button class="page-btn" [disabled]="currentPage === 1" (click)="previousPage()">
+                    <i class="bi bi-chevron-left"></i>
+                  </button>
+                  @for (page of getPages(); track page) {
+                    <button class="page-btn" [class.active]="currentPage === page" (click)="goToPage(page)">
+                      {{ page }}
+                    </button>
+                  }
+                  <button class="page-btn" [disabled]="currentPage === totalPages" (click)="nextPage()">
+                    <i class="bi bi-chevron-right"></i>
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      }
+    }
+  </div>
+
+  <!-- ✅ DRAWER ANALYSE -->
+  @if (drawerVisible) {
+    <div class="analyze-drawer">
+
+      <!-- Header -->
+      <div class="drawer-header">
+        <div class="drawer-title">
+          <i class="bi bi-cpu-fill"></i>
+          <div>
+            <h3>Résultats d'analyse</h3>
+            <p>{{ analyzeRepoNames.length }} repository(s) sélectionné(s)</p>
+          </div>
+        </div>
+        <button class="drawer-close" (click)="closeDrawer()">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+
+      <!-- Loading state -->
+      @if (analyzeLoading) {
+        <div class="drawer-loading">
+          <div class="spinner"></div>
+          <p>Analyse en cours...</p>
+          <span>Cela peut prendre quelques secondes</span>
+        </div>
+      }
+
+      <!-- Résultats -->
+      @if (!analyzeLoading && analyzeResult) {
+
+        <!-- Summary pills -->
+        <div class="drawer-summary">
+          <div class="sum-pill sum-total">
+            <span class="sum-num">{{ analyzeRepoNames.length }}</span>
+            <span class="sum-label">Analysé(s)</span>
+          </div>
+          <div class="sum-pill sum-success">
+            <span class="sum-num">{{ getSuccessCount() }}</span>
+            <span class="sum-label">Succès</span>
+          </div>
+          <div class="sum-pill sum-error">
+            <span class="sum-num">{{ analyzeResult.errors.length }}</span>
+            <span class="sum-label">Erreur(s)</span>
+          </div>
+        </div>
+
+        <!-- Résultats par repo -->
+        <div class="drawer-body">
+          @for (repo of analyzeRepoNames; track repo.id) {
+            <div class="result-item" [class.has-error]="getRepoError(repo.name)">
+
+              <div class="result-item-header">
+                <span class="status-dot"
+                  [class.dot-success]="!getRepoError(repo.name)"
+                  [class.dot-error]="getRepoError(repo.name)">
+                </span>
+                <span class="result-repo-name">{{ repo.name }}</span>
+                <span class="badge" [class]="getProviderClass(repo.provider)" style="font-size:10px;">
+                  {{ repo.provider }}
+                </span>
+              </div>
+
+              @if (getRepoError(repo.name)) {
+                <div class="error-box">
+                  <i class="bi bi-exclamation-circle-fill"></i>
+                  <p>{{ getRepoError(repo.name) }}</p>
+                </div>
+                @if (getRepoError(repo.name)?.toLowerCase()?.includes('token')) {
+                 <div class="fix-hint">
+                  <i class="bi bi-info-circle-fill"></i>
+                  <span>
+                    Impossible d'accéder à ce dépôt en raison d'un problème d'authentification. Veuillez contacter l'administrateur système.
+                  </span>
+                </div>
+                }
+              } @else {
+                <div class="success-box">
+                  <i class="bi bi-check-circle-fill"></i>
+                  <p>Analyse terminée avec succès</p>
+                </div>
+                
+                <!-- Stats détaillées -->
+                @if (getRepoStats(repo.id).loaded) {
+                  <div class="repo-stats-grid">
+                    <!-- Commits -->
+                    <div class="stat-item">
+                      <div class="stat-icon commits">
+                        <i class="bi bi-code-square"></i>
+                      </div>
+                      <div class="stat-detail">
+                        <span class="stat-number">{{ getRepoStats(repo.id).totalCommits }}</span>
+                        <span class="stat-label">Commits</span>
+                      </div>
+                    </div>
+                    
+                    <!-- Pushes -->
+                    <div class="stat-item">
+                      <div class="stat-icon pushes">
+                        <i class="bi bi-git"></i>
+                      </div>
+                      <div class="stat-detail">
+                        <span class="stat-number">{{ getRepoStats(repo.id).totalPushes }}</span>
+                        <span class="stat-label">Pushes</span>
+                        <div class="stat-sub">
+                          <span class="normal">▲ {{ getRepoStats(repo.id).normalPushes }}</span>
+                          <span class="force">⚡ {{ getRepoStats(repo.id).forcePushes }}</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <!-- Pull Requests -->
+                    <div class="stat-item">
+                      <div class="stat-icon pr">
+                        <i class="bi bi-git-merge"></i>
+                      </div>
+                      <div class="stat-detail">
+                        <span class="stat-number">{{ getRepoStats(repo.id).totalPullRequests }}</span>
+                        <span class="stat-label">Pull Requests</span>
+                        <div class="stat-sub">
+                          <span class="merged">✅ {{ getRepoStats(repo.id).mergeRate }}% fusionnés</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <!-- Branches -->
+                    <div class="stat-item">
+                      <div class="stat-icon branches">
+                        <i class="bi bi-diagram-2"></i>
+                      </div>
+                      <div class="stat-detail">
+                        <span class="stat-number">{{ getRepoStats(repo.id).branchesTotal }}</span>
+                        <span class="stat-label">Branches</span>
+                        <div class="stat-sub">
+                          <span class="active">● {{ getRepoStats(repo.id).branchesActive }} actives</span>
+                          <span class="stale">○ {{ getRepoStats(repo.id).branchesStale }} obsolètes</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <!-- Top Contributors -->
+                  @if (getRepoStats(repo.id).topContributors.length > 0) {
+                    <div class="contributors-section">
+                      <div class="contributors-header">
+                        <i class="bi bi-people-fill"></i>
+                        <span>Top contributeurs</span>
+                      </div>
+                      <div class="contributors-list">
+                        @for (contributor of getRepoStats(repo.id).topContributors; track contributor.name) {
+                          <div class="contributor-item">
+                            <span class="contributor-name">{{ contributor.name }}</span>
+                            <div class="contributor-bar">
+                              <div class="contributor-progress" 
+                                   [style.width.%]="(contributor.commits / getRepoStats(repo.id).totalCommits) * 100">
+                              </div>
+                            </div>
+                            <span class="contributor-commits">{{ contributor.commits }} commits</span>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  }
+
+                  <!-- ✅ §3.8 — Score de stabilité / hotspots, reçu directement dans la réponse d'analyse -->
+                  @if (getRepoRisk(repo.name)) {
+                    <div class="risk-box" [class]="getRiskLevelClass(getRepoRisk(repo.name)!.riskLevel)">
+                      <div class="risk-header">
+                        <i class="bi bi-shield-fill-exclamation"></i>
+                        <span class="risk-title">Score de stabilité</span>
+                        <span class="risk-level-badge" [class]="getRiskLevelClass(getRepoRisk(repo.name)!.riskLevel)">
+                          {{ getRiskLevelLabel(getRepoRisk(repo.name)!.riskLevel) }}
+                        </span>
+                      </div>
+
+                      <div class="risk-score-row">
+                        <div class="risk-score-circle" [class]="getRiskLevelClass(getRepoRisk(repo.name)!.riskLevel)">
+                          {{ getRepoRisk(repo.name)!.stabilityScore }}
+                        </div>
+                        <div class="risk-metrics">
+                          <div class="risk-metric-item">
+                            <i class="bi bi-fire"></i>
+                            <span>{{ getRepoRisk(repo.name)!.hotspotCount }} hotspot(s)</span>
+                          </div>
+                          <div class="risk-metric-item">
+                            <i class="bi bi-hourglass-split"></i>
+                            <span>{{ formatTechnicalDebt(getRepoRisk(repo.name)!.technicalDebtMinutes) }} de dette technique</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      @if (getRepoRisk(repo.name)!.bySeniority && getRepoRisk(repo.name)!.bySeniority!.length > 0) {
+                        <div class="risk-seniority">
+                          <span class="risk-seniority-label">Hotspots par séniorité :</span>
+                          <div class="risk-seniority-chips">
+                            @for (s of getRepoRisk(repo.name)!.bySeniority; track s.seniority) {
+                              <span class="seniority-chip">{{ s.seniority }} : {{ s.hotspotCount }}</span>
+                            }
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  }
+                } @else {
+                  <div class="loading-stats">
+                    <div class="spinner-small"></div>
+                    <span>Chargement des statistiques...</span>
+                  </div>
+                }
+              }
+
+            </div>
+          }
+        </div>
+
+        <!-- Footer -->
+        <div class="drawer-footer">
+          <span class="analyze-date">
+            <i class="bi bi-clock"></i> {{ analyzeDate }}
+          </span>
+          @if (analyzeResult.errors.length > 0) {
+            <button class="btn-retry" (click)="retryAnalyze()">
+              <i class="bi bi-arrow-clockwise"></i> Relancer
+            </button>
+          }
+        </div>
+      }
+
+    </div>
+
+    <!-- Overlay cliquable pour fermer -->
+    <div class="drawer-overlay" (click)="closeDrawer()"></div>
+  }
+
+</div>

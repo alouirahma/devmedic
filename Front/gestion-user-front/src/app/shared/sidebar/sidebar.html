@@ -1,0 +1,81 @@
+<div class="dm-sidebar">
+
+  <div class="sidebar-logo">
+    <div class="logo-box">
+      <span class="logo-dm">Dm</span>
+      <div class="logo-line"></div>
+    </div>
+    <div class="logo-text-group">
+      <span class="logo-dev">Dev</span>
+      <span class="logo-medic">Medic</span>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+
+    @if (isAdminOrLead) {
+      <a routerLink="/dashboard" routerLinkActive="active" class="nav-item">
+        <i class="bi bi-grid-1x2-fill"></i>
+        <span>Dashboard</span>
+      </a>
+    }
+
+    @if (isAdminOrLead) {
+      <a routerLink="/users" routerLinkActive="active" class="nav-item">
+        <i class="bi bi-people-fill"></i>
+        <span>Utilisateurs</span>
+      </a>
+    }
+
+    @if (isAdmin) {
+      <a routerLink="/roles" routerLinkActive="active" class="nav-item">
+        <i class="bi bi-shield-fill"></i>
+        <span>Rôles</span>
+      </a>
+    }
+
+    <a routerLink="/profile" routerLinkActive="active" class="nav-item">
+      <i class="bi bi-person-fill"></i>
+      <span>Mon profil</span>
+    </a>
+
+    <!-- ── GIT SECTION ── -->
+    <div class="nav-section-title">Git</div>
+
+    <button class="nav-item nav-group-toggle" (click)="toggleGit()">
+      <i class="bi bi-git"></i>
+      <span>Git</span>
+      <i class="bi chevron"
+         [class.bi-chevron-down]="!gitOpen"
+         [class.bi-chevron-up]="gitOpen"></i>
+    </button>
+
+    @if (gitOpen) {
+      <div class="nav-sub">
+        <a routerLink="/git/repositories" routerLinkActive="active" class="nav-item nav-sub-item">
+          <i class="bi bi-folder2-open"></i>
+          <span>Repositories</span>
+        </a>
+        <a routerLink="/git/branches" routerLinkActive="active" class="nav-item nav-sub-item">
+          <i class="bi bi-diagram-2"></i>
+          <span>Branches</span>
+        </a>
+        <a routerLink="/git/tags" routerLinkActive="active" class="nav-item nav-sub-item">
+          <i class="bi bi-tag-fill"></i>
+          <span>Tags</span>
+        </a>
+        <a routerLink="/git/commit" routerLinkActive="active" class="nav-item nav-sub-item">
+          <i class="bi bi-clock-history"></i>
+          <span>Commits</span>
+        </a>
+      
+      </div>
+    }
+
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="sidebar-version">v1.0.0</div>
+  </div>
+
+</div>

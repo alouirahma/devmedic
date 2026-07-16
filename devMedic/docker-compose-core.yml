@@ -1,0 +1,62 @@
+# C:\Users\BestPc\Desktop\DevMedic\devMedic\docker-compose-core.yml
+version: "3.8"
+
+networks:
+  traefik-net:
+    external: true
+
+services:
+  # ==================== CONFIG SERVER ====================
+  config-server:
+    build: ./configserver
+    container_name: config-server
+    restart: unless-stopped
+    ports:
+      - "8888:8888"
+    networks:
+      - traefik-net
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.config-server.rule=Host(`config.localhost`)"
+      - "traefik.http.services.config-server.loadbalancer.server.port=8888"
+
+  # ==================== EUREKA SERVER ====================
+  eureka-server:
+    build: ./eureka
+    container_name: eureka-server
+    restart: unless-stopped
+    ports:
+      - "8761:8761"
+    networks:
+      - traefik-net
+    depends_on:
+      - config-server
+    environment:
+      - SPRING_CLOUD_CONFIG_URI=http://config-server:8888
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.eureka.rule=Host(`eureka.localhost`)"
+      - "traefik.http.services.eureka.loadbalancer.server.port=8761"
+
+  # ==================== API GATEWAY ====================
+  api-gateway:
+    build: ./getway
+    container_name: api-gateway
+    restart: unless-stopped
+    ports:
+      - "8085:8085"
+    networks:
+      - traefik-net
+    depends_on:
+      - config-server
+      - eureka-server
+    environment:
+      - SPRING_CLOUD_CONFIG_URI=http://config-server:8888
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - SERVER_PORT=8085  #
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api-gateway.rule=Host(`gateway.localhost`)"
+      - "traefik.http.services.api-gateway.loadbalancer.server.port=8080"

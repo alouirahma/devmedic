@@ -1,0 +1,259 @@
+<div class="profile-page">
+
+  <div class="page-header">
+    <h4>Mon profil</h4>
+   
+  </div>
+
+  @if (loading) {
+    <div class="loading">
+      <div class="spinner"></div>
+      <span>Chargement...</span>
+    </div>
+  }
+
+  @if (!loading && user) {
+    <div class="profile-layout">
+
+      <!-- Colonne gauche -->
+      <div class="left-column">
+
+        <!-- Card Avatar -->
+        <div class="dm-card avatar-card">
+          <div class="avatar-circle">
+            {{ getInitials(user.username) }}
+          </div>
+          <h3 class="profile-name">{{ user.username }}</h3>
+          <p class="profile-email">{{ user.email }}</p>
+          <span class="role-badge" [class]="getRoleBadgeClass(getMainRole(user.roles))">
+            {{ getMainRole(user.roles) }}
+          </span>
+          <div class="member-since">
+            <i class="bi bi-calendar3"></i>
+            Membre depuis {{ daysSinceMember }} jours
+          </div>
+        </div>
+        <!-- Card Sécurité -->
+        <div class="dm-card security-card">
+          <h6 class="section-title">
+            <i class="bi bi-shield-lock"></i>
+            Sécurité
+          </h6>
+          <button class="btn-security" (click)="showPasswordModal = true">
+            <i class="bi bi-key"></i>
+            Changer le mot de passe
+          </button>
+         
+        </div>
+
+      </div>
+
+      <!-- Colonne droite -->
+      <div class="right-column">
+
+        <!-- Informations -->
+        <div class="dm-card">
+          <h6 class="section-title">
+            <i class="bi bi-person"></i>
+            Informations du compte
+          </h6>
+          <div class="info-list">
+            <div class="info-item">
+              <div class="info-label">
+                <i class="bi bi-person-badge"></i>
+                Username
+              </div>
+              <div class="info-value">{{ user.username }}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">
+                <i class="bi bi-envelope"></i>
+                Email
+              </div>
+              <div class="info-value">{{ user.email }}</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">
+                <i class="bi bi-shield"></i>
+                Rôles
+              </div>
+              <div class="info-value roles-list">
+                @for (role of user.roles; track role) {
+                  @if (!['offline_access','uma_authorization','default-roles-devmedic'].includes(role)) {
+                    <span class="role-badge" [class]="getRoleBadgeClass(role)">
+                      {{ role }}
+                    </span>
+                  }
+                }
+              </div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">
+                <i class="bi bi-check-circle"></i>
+                Statut
+              </div>
+              <div class="info-value">
+                <span class="status-active">
+                  <i class="bi bi-circle-fill"></i>
+                  Authentifié
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Comptes externes -->
+        <div class="dm-card">
+          <h6 class="section-title">
+            <i class="bi bi-link-45deg"></i>
+            Comptes externes liés
+          </h6>
+          <div class="providers">
+            <div class="provider-card">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="#24292e">
+                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+              </svg>
+              <div class="provider-info">
+                <div class="provider-name">GitHub</div>
+                <div class="provider-sub">Compte lié</div>
+              </div>
+              <span class="provider-badge linked">✓ Lié</span>
+            </div>
+
+            <div class="provider-card">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="#FC6D26">
+                <path d="M22.65 14.39L12 22.13 1.35 14.39a.84.84 0 01-.3-.94l1.22-3.78 2.44-7.51A.42.42 0 014.83 2a.43.43 0 01.58 0 .42.42 0 01.12.18l2.44 7.49h8.06l2.44-7.49A.42.42 0 0119.15 2a.43.43 0 01.58.18l2.44 7.51 1.22 3.78a.84.84 0 01-.74.92z"/>
+              </svg>
+              <div class="provider-info">
+                <div class="provider-name">GitLab</div>
+                <div class="provider-sub">Compte lié</div>
+              </div>
+              <span class="provider-badge linked">✓ Lié</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Activité récente -->
+        <div class="dm-card">
+          <h6 class="section-title">
+            <i class="bi bi-clock-history"></i>
+            Activité récente
+            <span class="live-badge">
+              <i class="bi bi-circle-fill"></i>
+              Live
+            </span>
+          </h6>
+
+          @if (recentActivity.length === 0) {
+            <div class="empty-activity">
+              <i class="bi bi-clock"></i>
+              <p>Aucune activité récente</p>
+            </div>
+          }
+
+          <div class="activity-list">
+            @for (activity of recentActivity; track activity.timestamp) {
+              <div class="activity-item">
+                <div class="activity-icon"
+                     [style.background]="getActivityColor(activity.type) + '20'">
+                  <i [class]="'bi ' + getActivityIcon(activity.type)"
+                     [style.color]="getActivityColor(activity.type)"></i>
+                </div>
+                <div class="activity-info">
+                  <div class="activity-action">{{ activity.action }}</div>
+                  <div class="activity-time">{{ getTimeAgo(activity.timestamp) }}</div>
+                </div>
+                <div class="activity-dot"
+                     [style.background]="getActivityColor(activity.type)">
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+
+      </div>
+    </div>
+  }
+
+  <!-- Modal Changement Mot de Passe -->
+  @if (showPasswordModal) {
+    <div class="modal-overlay" (click)="closeModal()">
+      <div class="modal-card" (click)="$event.stopPropagation()">
+
+        <div class="modal-header">
+          <h6>
+            <i class="bi bi-key"></i>
+            Changer le mot de passe
+          </h6>
+          <button class="close-btn" (click)="closeModal()">
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+
+        <div class="modal-body">
+
+          @if (passwordSuccess) {
+            <div class="alert-success">
+              <i class="bi bi-check-circle"></i>
+              Mot de passe modifié avec succès !
+            </div>
+          }
+
+          @if (passwordError) {
+            <div class="alert-error">
+              <i class="bi bi-exclamation-circle"></i>
+              {{ passwordError }}
+            </div>
+          }
+
+          <div class="form-group">
+            <label>Nouveau mot de passe</label>
+            <input
+              type="password"
+              [(ngModel)]="newPassword"
+              class="form-control"
+              placeholder="Minimum 8 caractères"
+            />
+          </div>
+
+          <div class="form-group">
+            <label>Confirmer le mot de passe</label>
+            <input
+              type="password"
+              [(ngModel)]="confirmPassword"
+              class="form-control"
+              placeholder="Répétez le mot de passe"
+            />
+          </div>
+
+          @if (newPassword.length > 0) {
+            <div class="password-strength">
+              <div class="strength-bar">
+                <div class="strength-fill"
+                     [style.width.%]="getPasswordStrength()"
+                     [style.background]="getPasswordStrengthColor()">
+                </div>
+              </div>
+              <span [style.color]="getPasswordStrengthColor()">
+                {{ getPasswordStrengthLabel() }}
+              </span>
+            </div>
+          }
+
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn-cancel" (click)="closeModal()">
+            Annuler
+          </button>
+          <button class="btn-confirm" (click)="changePassword()" [disabled]="passwordLoading">
+            <i class="bi bi-check"></i>
+            {{ passwordLoading ? 'Chargement...' : 'Confirmer' }}
+          </button>
+        </div>
+
+      </div>
+    </div>
+  }
+
+</div>

@@ -1,0 +1,24 @@
+﻿# Secrets - NE JAMAIS COMMITER
+.env
+**/.env
+!**/.env.example
+
+# Java / Maven
+target/
+*.class
+
+# IDE
+.idea/
+*.iml
+
+# Docker - donnees persistantes
+postgres-data/
+keycloak-data/
+traefik-data/
+
+# Logs
+*.log
+
+# Node (frontend)
+node_modules/
+dist/

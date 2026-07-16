@@ -1,0 +1,95 @@
+<div class="tags-page">
+
+  <div class="page-header">
+    <div>
+      <h1>Tags</h1>
+      <p>Tous les tags de vos repositories</p>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon total">
+        <i class="bi bi-tag-fill"></i>
+      </div>
+      <div class="stat-info">
+        <div class="stat-value">{{ totalTags }}</div>
+        <div class="stat-label">Total tags</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Search -->
+  <div class="filters-bar">
+    <div class="search-box">
+      <i class="bi bi-search"></i>
+      <input
+        type="text"
+        placeholder="Rechercher un tag..."
+        (input)="onSearch($event)" />
+    </div>
+  </div>
+
+  @if (loading) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Chargement des tags...</p>
+    </div>
+  }
+
+  @if (error) {
+    <div class="error-state">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <p>{{ error }}</p>
+    </div>
+  }
+
+  @if (!loading && !error) {
+    @if (filteredTags.length === 0) {
+      <div class="empty-state">
+        <i class="bi bi-tag-fill"></i>
+        <p>Aucun tag trouvé</p>
+        <a routerLink="/git/repositories" class="btn-primary">
+          Voir les repositories
+        </a>
+      </div>
+    } @else {
+      <div class="table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Tag</th>
+              <th>Repository</th>
+              <th>Commit SHA</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (tag of filteredTags; track tag.id) {
+              <tr>
+                <td>
+                  <div class="tag-name">
+                    <i class="bi bi-tag-fill"></i>
+                    <span>{{ tag.name }}</span>
+                  </div>
+                </td>
+                <td>
+                  <span class="repo-chip">
+                    <i class="bi bi-folder2-open"></i>
+                    {{ tag.repository?.name || '—' }}
+                  </span>
+                </td>
+                <td>
+                  <code class="sha-chip">{{ shortSha(tag.commitSha) }}</code>
+                </td>
+                <td class="date-cell">{{ formatDate(tag.taggedAt) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  }
+
+</div>

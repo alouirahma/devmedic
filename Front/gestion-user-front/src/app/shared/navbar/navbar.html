@@ -1,0 +1,40 @@
+<div class="dm-navbar">
+
+  <div class="navbar-title">
+    <h5>{{ pageTitle }}</h5>
+  </div>
+
+  <div class="navbar-right">
+
+    <button class="icon-btn">
+      <i class="bi bi-bell"></i>
+    </button>
+
+    @if (user) {
+      <div class="user-info">
+        <div class="user-avatar">
+          {{ getInitials(user.username) }}
+        </div>
+        <div class="user-details">
+          <div class="user-name">{{ user.username }}</div>
+          <div class="user-role" [class]="getRoleBadgeClass(getMainRole(user.roles))">
+            {{ getMainRole(user.roles) }}
+          </div>
+        </div>
+      </div>
+    } @else {
+      <div class="user-info">
+        <div class="user-avatar skeleton"></div>
+        <div class="user-details">
+          <div class="skeleton-text"></div>
+          <div class="skeleton-text short"></div>
+        </div>
+      </div>
+    }
+
+    <button class="icon-btn logout" (click)="logout()" title="Se déconnecter">
+      <i class="bi bi-box-arrow-right"></i>
+    </button>
+
+  </div>
+</div>

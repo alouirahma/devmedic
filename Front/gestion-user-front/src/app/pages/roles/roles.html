@@ -1,0 +1,102 @@
+<div class="roles-container">
+
+  <!-- Header -->
+  <div class="roles-header">
+    <div>
+      <h1>Gestion des rôles</h1>
+    </div>
+  </div>
+
+  @if (loading) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <span>Chargement...</span>
+    </div>
+  } @else {
+
+    <!-- Cartes rôles -->
+    <div class="role-cards">
+      @for (stat of roleStats; track stat.name) {
+        <div
+          class="role-card"
+          [class.selected]="selectedRole === stat.name"
+          (click)="selectRole(stat.name)">
+          <span class="role-badge" [ngClass]="stat.badgeClass">{{ stat.label }}</span>
+          <div class="role-count">{{ stat.userCount }}</div>
+          <div class="role-desc">{{ stat.description }}</div>
+        </div>
+      }
+    </div>
+
+    <!-- Matrice des permissions -->
+    <div class="matrix-section">
+      <h2>Matrice des permissions</h2>
+      <div class="matrix-table-wrapper">
+        <table class="matrix-table">
+          <thead>
+            <tr>
+              <th>Page</th>
+              @for (role of roles; track role) {
+                <th>
+                  <span class="role-badge sm" [ngClass]="'badge-' + role.toLowerCase().replace('_', '-')">
+                    {{ role }}
+                  </span>
+                </th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (page of pages; track page) {
+              <tr>
+                <td class="page-name">{{ page }}</td>
+                @for (role of roles; track role) {
+                  <td class="perm-cell">
+                    @if (hasPermission(page, role)) {
+                      <span class="perm-yes">✓</span>
+                    } @else {
+                      <span class="perm-no">✗</span>
+                    }
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Users du rôle sélectionné -->
+    @if (selectedRole) {
+      <div class="users-section">
+        <h2>
+          Users avec le rôle
+          <span class="role-badge" [ngClass]="'badge-' + selectedRole.toLowerCase().replace('_', '-')">
+            {{ selectedRole }}
+          </span>
+        </h2>
+
+        @if (usersByRole[selectedRole].length === 0) {
+          <div class="empty-state">Aucun utilisateur avec ce rôle.</div>
+        } @else {
+          <div class="user-list">
+            @for (user of usersByRole[selectedRole]; track user.id) {
+              <div class="user-row">
+                <div class="user-avatar">{{ getInitials(user.username) }}</div>
+                <div class="user-info">
+                  <span class="user-name">{{ user.username }}</span>
+                  <span class="user-email">{{ user.email }}</span>
+                </div>
+                <button
+                  class="btn-remove"
+                  (click)="removeRoleFromUser(user, selectedRole!)">
+                  Retirer
+                </button>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+
+  }
+</div>

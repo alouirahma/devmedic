@@ -1,0 +1,195 @@
+<div class="branches-page">
+
+  <!-- Header -->
+  <div class="page-header">
+    <div>
+      <h1>Branches</h1>
+      <p>Toutes les branches de vos repositories</p>
+    </div>
+
+    @if (searchTerm || selectedBranchType !== 'ALL') {
+      <button class="btn-reset" (click)="resetFilters()">
+        <i class="bi bi-arrow-counterclockwise"></i>
+        Réinitialiser les filtres
+      </button>
+    }
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon total">
+        <i class="bi bi-diagram-2"></i>
+      </div>
+      <div class="stat-info">
+        <div class="stat-value">{{ totalBranches }}</div>
+        <div class="stat-label">Total branches</div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon default">
+        <i class="bi bi-star-fill"></i>
+      </div>
+      <div class="stat-info">
+        <div class="stat-value">{{ defaultBranches }}</div>
+        <div class="stat-label">Branches par défaut</div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon other">
+        <i class="bi bi-git"></i>
+      </div>
+      <div class="stat-info">
+        <div class="stat-value">{{ otherBranches }}</div>
+        <div class="stat-label">Autres branches</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters - Sur la même ligne -->
+  <div class="filters-bar">
+    <div class="search-box">
+      <i class="bi bi-search"></i>
+      <input
+        type="text"
+        placeholder="Rechercher une branche..."
+        (input)="onSearch($event)" />
+    </div>
+
+    <div class="filter-group">
+      <button
+        [class.active]="selectedBranchType === 'ALL'"
+        (click)="filterByBranchType('ALL')">
+        Toutes
+      </button>
+
+      <button
+        [class.active]="selectedBranchType === 'DEFAULT'"
+        (click)="filterByBranchType('DEFAULT')">
+        <i class="bi bi-star-fill"></i> Défaut
+      </button>
+
+      <button
+        [class.active]="selectedBranchType === 'OTHER'"
+        (click)="filterByBranchType('OTHER')">
+        <i class="bi bi-git"></i> Secondaires
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading / Error / Empty States -->
+  @if (loading) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Chargement des branches...</p>
+    </div>
+  }
+
+  @if (error) {
+    <div class="error-state">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <p>{{ error }}</p>
+    </div>
+  }
+
+  @if (!loading && !error) {
+
+    @if (filteredBranches.length === 0) {
+      <div class="empty-state">
+        <i class="bi bi-diagram-2"></i>
+        <p>Aucune branche trouvée avec les filtres actuels</p>
+        <button class="btn-primary" (click)="resetFilters()">
+          Réinitialiser les filtres
+        </button>
+      </div>
+    } @else {
+
+      <!-- Table -->
+      <div class="table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Branche</th>
+              <th>Dernier commit</th>
+              <th>Date commit</th>
+              <th>Statut</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (branch of paginatedBranches; track branch.id) {
+              <tr>
+                <td>
+                  <div class="branch-name">
+                    <i class="bi bi-diagram-2"></i>
+                    <span>{{ branch.name }}</span>
+                  </div>
+                </td>
+                <td>
+                  <code class="sha-chip">
+                    {{ shortSha(branch.lastCommitSha) }}
+                  </code>
+                </td>
+                <td class="date-cell">
+                  {{ formatDate(branch.lastCommitTime) }}
+                </td>
+                <td>
+                  @if (branch.default) {
+                    <span class="badge badge-default">
+                      <i class="bi bi-star-fill"></i>
+                      Défaut
+                    </span>
+                  } @else {
+                    <span class="badge badge-other">
+                      Secondaire
+                    </span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      @if (filteredBranches.length > 0) {
+        <div class="pagination-section">
+          <div class="pagination-info">
+            <i class="bi bi-info-circle"></i>
+            {{ (currentPage - 1) * itemsPerPage + 1 }} -
+            {{ Math.min(currentPage * itemsPerPage, filteredBranches.length) }}
+            sur {{ filteredBranches.length }} branche(s)
+          </div>
+
+          <div class="pagination-controls">
+            <div class="items-per-page">
+              <label>Afficher :</label>
+              <select [value]="itemsPerPage" (change)="changeItemsPerPage($event)">
+                @for (size of pageSizes; track size) {
+                  <option [value]="size">{{ size }}</option>
+                }
+              </select>
+            </div>
+
+            <div class="pagination-buttons">
+              <button class="page-btn" [disabled]="currentPage === 1" (click)="previousPage()">
+                <i class="bi bi-chevron-left"></i>
+              </button>
+
+              @for (page of getPages(); track page) {
+                <button class="page-btn" [class.active]="currentPage === page" (click)="goToPage(page)">
+                  {{ page }}
+                </button>
+              }
+
+              <button class="page-btn" [disabled]="currentPage === totalPages" (click)="nextPage()">
+                <i class="bi bi-chevron-right"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+    }
+  }
+</div>

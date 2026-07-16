@@ -1,0 +1,84 @@
+# docker-compose.yml (à la racine du projet devMedic/)
+
+version: "3.8"
+
+services:
+  traefik:
+    image: traefik:3.0
+    container_name: traefik
+    restart: unless-stopped
+
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik-data/acme.json:/letsencrypt/acme.json
+
+    networks:
+      - traefik-net
+
+  # ==================== KEYCLOAK DATABASE ====================
+  keycloak-db:
+    image: postgres:16
+    container_name: keycloak-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+    volumes:
+      - ./keycloak-data/postgres-data:/var/lib/postgresql/data
+    networks:
+      - traefik-net
+
+  # ==================== KEYCLOAK ====================
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    container_name: keycloak
+    restart: unless-stopped
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak123
+      KC_HOSTNAME: auth.localhost
+      KC_HOSTNAME_STRICT: false
+      KC_HTTP_ENABLED: true
+      KC_HTTPS_ENABLED: false
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+    command: start-dev
+    depends_on:
+      - keycloak-db
+    networks:
+      - traefik-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.keycloak.rule=Host(`auth.localhost`)"
+      - "traefik.http.routers.keycloak.entrypoints=web"
+      - "traefik.http.routers.keycloak.priority=1"
+      - "traefik.http.services.keycloak.loadbalancer.server.port=8080"
+
+    # ==================== POSTGRESQL POUR L'APPLICATION ====================
+  postgres-app:
+      image: postgres:16
+      container_name: postgres-app
+      restart: unless-stopped
+      environment:
+        POSTGRES_DB: devmedic          # Nom de la base de données
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: ${POSTGRES_APP_PASSWORD} # Change ce mot de passe si tu veux
+      ports:
+        - "5432:5432"                   # Port accessible depuis ton PC
+      volumes:
+        - ./postgres-data:/var/lib/postgresql/data
+      networks:
+        - traefik-net
+    # ====================== NETWORKS ======================
+networks:
+  traefik-net:
+      external: true

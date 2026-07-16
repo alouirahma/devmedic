@@ -1,0 +1,238 @@
+// roles.scss — harmonisé avec le thème DevMedic
+
+.roles-container {
+  padding: 5px;
+  max-width: 1100px;
+}
+
+.roles-header {
+  margin-bottom: 28px;
+
+  h1 {
+    font-size: 20px;
+    font-weight: 500;
+    color: #0C447C;
+    margin: 0 0 4px;
+  }
+
+  .subtitle {
+    font-size: 13px;
+    color: #888;
+    margin: 0;
+  }
+}
+
+// --- Loading ---
+.loading-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 20px;
+  color: #888;
+  font-size: 13px;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #E6F1FB;
+  border-top-color: #378ADD;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+// --- Cartes rôles ---
+.role-cards {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin-bottom: 32px;
+
+  @media (max-width: 900px) { grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 600px) { grid-template-columns: repeat(2, 1fr); }
+}
+
+.role-card {
+  background: #F4F6F9;
+  border: 1.5px solid #f0f0f0;
+  border-radius: 8px;
+  padding: 20px 16px;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  text-align: center;
+
+  &:hover {
+    border-color: #378ADD;
+  }
+
+  &.selected {
+    border-color: #378ADD;
+    box-shadow: 0 0 0 3px #E6F1FB;
+  }
+
+  .role-count {
+    font-size: 28px;
+    font-weight: 600;
+    margin: 10px 0 4px;
+    color: #0C447C;
+  }
+
+  .role-desc {
+    font-size: 12px;
+    color: #888;
+  }
+}
+
+// --- Badges (partagés avec profile.scss) ---
+.role-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+
+  &.sm { font-size: 10px; padding: 2px 7px; }
+}
+
+.badge-admin     { background: #E6F1FB; color: #0C447C; }
+.badge-team-lead { background: #FAEEDA; color: #854F0B; }
+.badge-developer { background: #EAF3DE; color: #3B6D11; }
+.badge-analyst   { background: #EEEDFE; color: #3C3489; }
+.badge-viewer    { background: #F1EFE8; color: #5F5E5A; }
+
+// --- Matrice des permissions ---
+.matrix-section {
+  margin-bottom: 32px;
+
+  h2 {
+    font-size: 14px;
+    font-weight: 500;
+    color: #0C447C;
+    margin: 0 0 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+}
+
+.matrix-table-wrapper {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid #f0f0f0;
+}
+
+.matrix-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th, td {
+    padding: 12px 16px;
+    text-align: center;
+    font-size: 13px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  th {
+    background: #F4F6F9;
+    font-weight: 500;
+    color: #0C447C;
+  }
+
+  td.page-name {
+    text-align: left;
+    font-weight: 500;
+    color: #2C2C2A;
+    min-width: 130px;
+  }
+
+  tr:last-child td { border-bottom: none; }
+
+  tr:hover td { background: #F4F6F9; }
+}
+
+.perm-yes { color: #3B6D11; font-size: 16px; font-weight: 700; }
+.perm-no  { color: #c0392b; font-size: 16px; opacity: 0.35; }
+
+// --- Section users par rôle ---
+.users-section {
+  h2 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #0C447C;
+    margin: 0 0 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+}
+
+.empty-state {
+  padding: 24px;
+  text-align: center;
+  color: #888;
+  font-size: 13px;
+  border: 1px dashed #f0f0f0;
+  border-radius: 8px;
+}
+
+.user-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.user-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background 0.15s;
+
+  &:last-child { border-bottom: none; }
+}
+
+.user-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #378ADD;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.user-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  .user-name  { font-size: 13px; font-weight: 500; color: #2C2C2A; }
+  .user-email { font-size: 12px; color: #888; }
+}
+
+.btn-remove {
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 1px solid #f0f0f0;
+  background: #F4F6F9;
+  color: #888;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+
+  &:hover {
+    background: #fdecea;
+    color: #c0392b;
+    border-color: #fdecea;
+  }
+}

@@ -1,0 +1,252 @@
+<div class="commits-page">
+
+  <!-- Header -->
+  <div class="page-header">
+    <div>
+      <h1>Commits</h1>
+      <p>Tous les commits de vos repositories</p>
+    </div>
+
+    @if (isFilterActive()) {
+      <button class="btn-reset" (click)="resetFilters()">
+        <i class="bi bi-arrow-counterclockwise"></i>
+        Réinitialiser les filtres
+      </button>
+    }
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon total">
+        <i class="bi bi-git-commit"></i>
+      </div>
+      <div class="stat-info">
+        <div class="stat-value">{{ totalCommits }}</div>
+        <div class="stat-label">Total commits</div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon today">
+        <i class="bi bi-calendar-today"></i>
+      </div>
+      <div class="stat-info">
+        <div class="stat-value">{{ todayCommits }}</div>
+        <div class="stat-label">Aujourd'hui</div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon week">
+        <i class="bi bi-calendar-week"></i>
+      </div>
+      <div class="stat-info">
+        <div class="stat-value">{{ thisWeekCommits }}</div>
+        <div class="stat-label">Cette semaine</div>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-icon month">
+        <i class="bi bi-calendar-month"></i>
+      </div>
+      <div class="stat-info">
+        <div class="stat-value">{{ thisMonthCommits }}</div>
+        <div class="stat-label">Ce mois</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters-bar">
+    <div class="search-box">
+      <i class="bi bi-search"></i>
+      <input
+        type="text"
+        placeholder="Rechercher un commit..."
+        (input)="onSearch($event)" />
+    </div>
+
+    <div class="filter-group">
+      <button
+        [class.active]="selectedProvider === 'ALL'"
+        (click)="filterByProvider('ALL')">
+        Tous
+      </button>
+      <button
+        [class.active]="selectedProvider === 'GITHUB'"
+        (click)="filterByProvider('GITHUB')">
+        <i class="bi bi-github"></i> GitHub
+      </button>
+      <button
+        [class.active]="selectedProvider === 'GITLAB'"
+        (click)="filterByProvider('GITLAB')">
+        <i class="bi bi-gitlab"></i> GitLab
+      </button>
+    </div>
+
+    @if (repositories.length > 0) {
+      <div class="filter-select">
+        <select [(ngModel)]="selectedRepository" (change)="applyFilters()">
+          <option value="ALL">📁 Tous les repos</option>
+          @for (repo of repositories; track repo) {
+            <option [value]="repo">📁 {{ repo }}</option>
+          }
+        </select>
+      </div>
+    }
+
+    @if (authors.length > 0) {
+      <div class="filter-select">
+        <select [(ngModel)]="selectedAuthor" (change)="applyFilters()">
+          <option value="ALL">👤 Tous les auteurs</option>
+          @for (author of authors; track author) {
+            <option [value]="author">👤 {{ author }}</option>
+          }
+        </select>
+      </div>
+    }
+
+    <div class="filter-group date-filter">
+      <button
+        [class.active]="dateRange === 'ALL'"
+        (click)="filterByDateRange('ALL')">
+        Toutes
+      </button>
+      <button
+        [class.active]="dateRange === 'TODAY'"
+        (click)="filterByDateRange('TODAY')">
+        Aujourd'hui
+      </button>
+      <button
+        [class.active]="dateRange === 'WEEK'"
+        (click)="filterByDateRange('WEEK')">
+        7 jours
+      </button>
+      <button
+        [class.active]="dateRange === 'MONTH'"
+        (click)="filterByDateRange('MONTH')">
+        30 jours
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading / Error / Empty States -->
+  @if (loading) {
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Chargement des commits...</p>
+    </div>
+  }
+
+  @if (error) {
+    <div class="error-state">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <p>{{ error }}</p>
+    </div>
+  }
+
+  @if (!loading && !error) {
+
+    @if (filteredCommits.length === 0) {
+      <div class="empty-state">
+        <i class="bi bi-git-commit"></i>
+        <p>Aucun commit trouvé avec les filtres actuels</p>
+        @if (isFilterActive()) {
+          <button class="btn-primary" (click)="resetFilters()">
+            Réinitialiser les filtres
+          </button>
+        }
+      </div>
+    } @else {
+
+      <!-- Table -->
+      <div class="table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th class="col-sha">SHA</th>
+              <th class="col-message">Message</th>
+              <th class="col-author">Auteur</th>
+              <th class="col-repo">Repository</th>
+              <th class="col-date">Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (commit of paginatedCommits; track commit.id) {
+              <tr>
+                <td class="col-sha">
+                  <code class="sha-chip">
+                    {{ shortSha(commit.sha) }}
+                  </code>
+                </td>
+                <td class="col-message">
+                  <div class="commit-message">
+                    <span>{{ commit.message || '—' }}</span>
+                  </div>
+                </td>
+                <td class="col-author">
+                  <div class="commit-author">
+                    <span>{{ commit.authorName || commit.author || '—' }}</span>
+                  </div>
+                </td>
+                <td class="col-repo">
+                  <div class="repo-info">
+                    <span>{{ commit.repositoryName || '—' }}</span>
+                    <span class="provider-badge" [class]="getProviderClass(commit.provider)">
+                      <i [class]="getProviderIcon(commit.provider)"></i>
+                      {{ commit.provider || 'GITHUB' }}
+                    </span>
+                  </div>
+                </td>
+                <td class="col-date">
+                  {{ formatDate(commit.committedAt || commit.commitTime || commit.date) }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      @if (filteredCommits.length > 0) {
+        <div class="pagination-section">
+          <div class="pagination-info">
+            <i class="bi bi-info-circle"></i>
+            {{ (currentPage - 1) * itemsPerPage + 1 }} -
+            {{ Math.min(currentPage * itemsPerPage, filteredCommits.length) }}
+            sur {{ filteredCommits.length }} commit(s)
+          </div>
+
+          <div class="pagination-controls">
+            <div class="items-per-page">
+              <label>Afficher :</label>
+              <select [value]="itemsPerPage" (change)="changeItemsPerPage($event)">
+                @for (size of pageSizes; track size) {
+                  <option [value]="size">{{ size }}</option>
+                }
+              </select>
+            </div>
+
+            <div class="pagination-buttons">
+              <button class="page-btn" [disabled]="currentPage === 1" (click)="previousPage()">
+                <i class="bi bi-chevron-left"></i>
+              </button>
+
+              @for (page of getPages(); track page) {
+                <button class="page-btn" [class.active]="currentPage === page" (click)="goToPage(page)">
+                  {{ page }}
+                </button>
+              }
+
+              <button class="page-btn" [disabled]="currentPage === totalPages" (click)="nextPage()">
+                <i class="bi bi-chevron-right"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+    }
+  }
+</div>

@@ -1,0 +1,528 @@
+<div class="dashboard">
+
+  <!-- Header principal -->
+  <div class="page-header">
+    <div>
+      <h4>Tableau de bord</h4>
+      <p>Bienvenue sur DevMedic</p>
+    </div>
+    <div class="tab-switcher">
+      <button [class.active]="activeTab === 'users'" (click)="switchTab('users')">
+        <i class="bi bi-people-fill"></i> Utilisateurs
+      </button>
+      <button [class.active]="activeTab === 'git'" (click)="switchTab('git')">
+        <i class="bi bi-git"></i> Analyse Git
+      </button>
+    </div>
+  </div>
+
+  <!-- TAB UTILISATEURS -->
+  @if (activeTab === 'users') {
+    <div class="stats-grid">
+      <div class="dm-stat-card">
+        <div class="stat-icon" style="background:#E6F1FB"><i class="bi bi-people-fill" style="color:#0C447C"></i></div>
+        <div><div class="stat-value">{{ totalUsers }}</div><div class="stat-label">Total utilisateurs</div></div>
+      </div>
+      <div class="dm-stat-card">
+        <div class="stat-icon" style="background:#EAF3DE"><i class="bi bi-shield-fill" style="color:#3B6D11"></i></div>
+        <div><div class="stat-value" style="color:#3B6D11">{{ adminCount }}</div><div class="stat-label">Administrateurs</div></div>
+      </div>
+      <div class="dm-stat-card">
+        <div class="stat-icon" style="background:#EEEDFE"><i class="bi bi-code-slash" style="color:#3C3489"></i></div>
+        <div><div class="stat-value" style="color:#3C3489">{{ developerCount }}</div><div class="stat-label">Développeurs</div></div>
+      </div>
+      <div class="dm-stat-card">
+        <div class="stat-icon" style="background:#FAEEDA"><i class="bi bi-graph-up" style="color:#854F0B"></i></div>
+        <div><div class="stat-value" style="color:#854F0B">{{ analystCount }}</div><div class="stat-label">Analystes</div></div>
+      </div>
+    </div>
+
+    <div class="content-grid">
+      <div class="dm-card">
+        <div class="card-header"><h6>Utilisateurs récents</h6><span class="badge-count">{{ users.length }}</span></div>
+        @if (loading) { <div class="loading"><div class="spinner"></div><span>Chargement...</span></div> }
+        @if (!loading && users.length > 0) {
+          <table class="dm-table">
+            <thead><tr><th>Utilisateur</th><th>Email</th><th>Rôle</th><th>Statut</th></tr></thead>
+            <tbody>
+              @for (user of users.slice(0,8); track user.id) {
+                <tr>
+                  <td><div class="user-cell"><div class="avatar">{{ getInitials(user.username) }}</div><span>{{ user.username }}</span></div></td>
+                  <td class="text-muted">{{ user.email }}</td>
+                  <td><span class="role-badge" [class]="getRoleBadgeClass(user.roles)">{{ getMainRole(user.roles) }}</span></td>
+                  <td><span class="status-badge active">Actif</span></td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+        @if (!loading && users.length === 0) {
+          <div class="empty-state"><i class="bi bi-people"></i><p>Aucun utilisateur trouvé</p></div>
+        }
+      </div>
+      <div class="dm-card">
+        <div class="card-header"><h6>Répartition des rôles</h6></div>
+        <div class="role-list">
+          @for (role of roleStats; track role.name) {
+            <div class="role-item">
+              <div class="role-info">
+                <span class="role-badge" [class]="'badge-' + role.name.toLowerCase()">{{ role.name }}</span>
+                <span class="role-count">{{ role.count }} users</span>
+              </div>
+              <div class="role-bar-container">
+                <div class="role-bar" [style.width.%]="getPercent(role.count)" [style.background]="role.color"></div>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- TAB GIT -->
+  @if (activeTab === 'git') {
+
+    <!-- Toolbar repo avec export -->
+    <div class="repo-toolbar">
+      <div class="repo-selector">
+        <i class="bi bi-folder2-open"></i>
+        <select [value]="selectedRepoId" (change)="onRepoChange($event)">
+          @for (repo of repositories; track repo.id) {
+            <option [value]="repo.id">{{ repo.owner }}/{{ repo.name }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="export-wrapper" (click)="$event.stopPropagation()">
+        <button class="btn-export" (click)="toggleExportMenu($event)" [disabled]="!dashboardData || exporting" [class.active]="exportMenuOpen">
+          <i class="bi bi-download"></i>
+          <span>Exporter</span>
+          <i class="bi bi-chevron-down" [class.rotated]="exportMenuOpen"></i>
+        </button>
+        <div class="export-dropdown" *ngIf="exportMenuOpen && dashboardData">
+          <button (click)="exportPDF($event)" [disabled]="exporting">
+            <i class="bi bi-filetype-pdf"></i><span>Exporter en PDF</span><span class="badge">Rapport</span>
+          </button>
+          <button (click)="exportExcel($event)" [disabled]="exporting">
+            <i class="bi bi-file-excel"></i><span>Exporter en Excel</span><span class="badge">Données</span>
+          </button>
+          <div class="dropdown-divider"></div>
+          <div class="dropdown-info">
+            <i class="bi bi-info-circle"></i><span>Export des données du tableau de bord</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="export-success" *ngIf="exportSuccessMessage">
+        <i class="bi bi-check-circle-fill"></i> {{ exportSuccessMessage }}
+      </div>
+    </div>
+
+    @if (gitLoading) {
+      <div class="pbi-loading"><div class="pbi-spinner"></div><span>Chargement des données...</span></div>
+    }
+
+    @if (!gitLoading && dashboardData) {
+      <div class="pbi-workspace">
+        <div class="pbi-canvas">
+
+          <!-- PAGE : Vue générale -->
+          @if (activePage === 'overview') {
+            <div class="pbi-page-title">Vue générale</div>
+            <div class="kpi-row">
+              <div class="kpi-card">
+                <div class="kpi-icon commits"><i class="bi bi-git"></i></div>
+                <div class="kpi-body"><div class="kpi-value">{{ formatNumber(dashboardData.commits.total) }}</div><div class="kpi-label">Commits</div></div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-icon branches"><i class="bi bi-diagram-2-fill"></i></div>
+                <div class="kpi-body"><div class="kpi-value">{{ dashboardData.branches.total }}</div><div class="kpi-label">Branches</div></div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-icon prs"><i class="bi bi-arrow-left-right"></i></div>
+                <div class="kpi-body"><div class="kpi-value">{{ dashboardData.pullRequests.total }}</div><div class="kpi-label">Pull Requests</div></div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-icon contributors"><i class="bi bi-people-fill"></i></div>
+                <div class="kpi-body"><div class="kpi-value">{{ dashboardData.contributions.total }}</div><div class="kpi-label">Contributeurs</div></div>
+              </div>
+              <div class="kpi-card">
+                <div class="kpi-icon pushes"><i class="bi bi-cloud-upload-fill"></i></div>
+                <div class="kpi-body"><div class="kpi-value">{{ dashboardData.pushes.total }}</div><div class="kpi-label">Pushes</div></div>
+              </div>
+              <div class="kpi-card" [class]="'kpi-bf-' + getBusFactorColor(dashboardData.contributions.busFactor)">
+                <div class="kpi-icon bus"><i class="bi bi-bus-front-fill"></i></div>
+                <div class="kpi-body"><div class="kpi-value">{{ dashboardData.contributions.busFactor }}</div><div class="kpi-label">Bus Factor</div></div>
+              </div>
+            </div>
+            <div class="charts-2col">
+              <div class="pbi-card">
+                <div class="pbi-card-title"><i class="bi bi-bar-chart-fill"></i> Commits / mois</div>
+                <apx-chart [series]="commitsMonthlyChart.series!" [chart]="commitsMonthlyChart.chart!" [xaxis]="commitsMonthlyChart.xaxis!" [stroke]="commitsMonthlyChart.stroke!" [fill]="commitsMonthlyChart.fill!" [dataLabels]="commitsMonthlyChart.dataLabels!" [grid]="commitsMonthlyChart.grid!" [colors]="commitsMonthlyChart.colors!" [tooltip]="commitsMonthlyChart.tooltip!"></apx-chart>
+              </div>
+              <div class="pbi-card">
+                <div class="pbi-card-title"><i class="bi bi-arrow-left-right"></i> Pull Requests</div>
+                <apx-chart [series]="prDonutChart.series!" [chart]="prDonutChart.chart!" [labels]="prDonutChart.labels!" [colors]="prDonutChart.colors!" [plotOptions]="prDonutChart.plotOptions!" [dataLabels]="prDonutChart.dataLabels!" [legend]="prDonutChart.legend!" [responsive]="prDonutChart.responsive!"></apx-chart>
+                <div class="merge-rate-badge" [class]="'rate-' + getMergeRateColor(dashboardData.pullRequests.mergeRate)">
+                  <i class="bi bi-check2-circle"></i> Taux de fusion : {{ dashboardData.pullRequests.mergeRate }}%
+                </div>
+              </div>
+            </div>
+          }
+
+          <!-- PAGE : Commits -->
+          @if (activePage === 'commits') {
+            <div class="pbi-page-title">Analyse des commits</div>
+            <div class="kpi-row">
+              <div class="kpi-card"><div class="kpi-icon commits"><i class="bi bi-git"></i></div><div class="kpi-body"><div class="kpi-value">{{ dashboardData.commits.total }}</div><div class="kpi-label">Total commits</div></div></div>
+              <div class="kpi-card"><div class="kpi-icon added"><i class="bi bi-plus-circle-fill"></i></div><div class="kpi-body"><div class="kpi-value" style="color:#1D9E75">+{{ formatNumber(dashboardData.commits.linesAdded) }}</div><div class="kpi-label">Lignes ajoutées</div></div></div>
+              <div class="kpi-card"><div class="kpi-icon deleted"><i class="bi bi-dash-circle-fill"></i></div><div class="kpi-body"><div class="kpi-value" style="color:#E24B4A">-{{ formatNumber(dashboardData.commits.linesDeleted) }}</div><div class="kpi-label">Lignes supprimées</div></div></div>
+            </div>
+            <div class="charts-2col">
+              <div class="pbi-card wide">
+                <div class="pbi-card-title"><i class="bi bi-graph-up"></i> Évolution des commits</div>
+                <apx-chart [series]="commitsMonthlyChart.series!" [chart]="commitsMonthlyChart.chart!" [xaxis]="commitsMonthlyChart.xaxis!" [stroke]="commitsMonthlyChart.stroke!" [fill]="commitsMonthlyChart.fill!" [dataLabels]="commitsMonthlyChart.dataLabels!" [grid]="commitsMonthlyChart.grid!" [colors]="commitsMonthlyChart.colors!" [tooltip]="commitsMonthlyChart.tooltip!"></apx-chart>
+              </div>
+              <div class="pbi-card">
+                <div class="pbi-card-title"><i class="bi bi-bar-chart-steps"></i> Lignes de code</div>
+                <apx-chart [series]="linesChart.series!" [chart]="linesChart.chart!" [xaxis]="linesChart.xaxis!" [plotOptions]="linesChart.plotOptions!" [dataLabels]="linesChart.dataLabels!" [colors]="linesChart.colors!" [grid]="linesChart.grid!" [tooltip]="linesChart.tooltip!"></apx-chart>
+              </div>
+            </div>
+          }
+
+          <!-- PAGE : Branches -->
+          @if (activePage === 'branches') {
+            <div class="pbi-page-title">Analyse des branches</div>
+            <div class="kpi-row">
+              <div class="kpi-card"><div class="kpi-icon branches"><i class="bi bi-diagram-2-fill"></i></div><div class="kpi-body"><div class="kpi-value">{{ dashboardData.branches.total }}</div><div class="kpi-label">Total branches</div></div></div>
+              <div class="kpi-card"><div class="kpi-icon added"><i class="bi bi-activity"></i></div><div class="kpi-body"><div class="kpi-value" style="color:#1D9E75">{{ dashboardData.branches.active }}</div><div class="kpi-label">Actives (30j)</div></div></div>
+              <div class="kpi-card"><div class="kpi-icon deleted"><i class="bi bi-clock-history"></i></div><div class="kpi-body"><div class="kpi-value" style="color:#E24B4A">{{ dashboardData.branches.stale }}</div><div class="kpi-label">Obsolètes</div></div></div>
+            </div>
+            <div class="charts-center">
+              <div class="pbi-card donut-card">
+                <div class="pbi-card-title"><i class="bi bi-pie-chart-fill"></i> Répartition des branches</div>
+                <apx-chart [series]="branchDonutChart.series!" [chart]="branchDonutChart.chart!" [labels]="branchDonutChart.labels!" [colors]="branchDonutChart.colors!" [plotOptions]="branchDonutChart.plotOptions!" [dataLabels]="branchDonutChart.dataLabels!" [legend]="branchDonutChart.legend!" [responsive]="branchDonutChart.responsive!"></apx-chart>
+              </div>
+            </div>
+          }
+
+          <!-- PAGE : Pull Requests -->
+          @if (activePage === 'pullrequests') {
+            <div class="pbi-page-title">Analyse des Pull Requests</div>
+            <div class="kpi-row">
+              <div class="kpi-card"><div class="kpi-icon prs"><i class="bi bi-arrow-left-right"></i></div><div class="kpi-body"><div class="kpi-value">{{ dashboardData.pullRequests.total }}</div><div class="kpi-label">Total PRs</div></div></div>
+              <div class="kpi-card"><div class="kpi-icon added"><i class="bi bi-check-circle-fill"></i></div><div class="kpi-body"><div class="kpi-value" style="color:#1D9E75">{{ dashboardData.pullRequests.merged }}</div><div class="kpi-label">Merged</div></div></div>
+              <div class="kpi-card"><div class="kpi-icon commits"><i class="bi bi-circle-half"></i></div><div class="kpi-body"><div class="kpi-value" style="color:#378ADD">{{ dashboardData.pullRequests.open }}</div><div class="kpi-label">Open</div></div></div>
+              <div class="kpi-card"><div class="kpi-icon deleted"><i class="bi bi-x-circle-fill"></i></div><div class="kpi-body"><div class="kpi-value" style="color:#E24B4A">{{ dashboardData.pullRequests.closed }}</div><div class="kpi-label">Closed</div></div></div>
+              <div class="kpi-card" [class]="'kpi-bf-' + getMergeRateColor(dashboardData.pullRequests.mergeRate)">
+                <div class="kpi-icon prs"><i class="bi bi-percent"></i></div>
+                <div class="kpi-body"><div class="kpi-value">{{ dashboardData.pullRequests.mergeRate }}%</div><div class="kpi-label">Taux de fusion</div></div>
+              </div>
+            </div>
+            <div class="charts-center">
+              <div class="pbi-card donut-card">
+                <div class="pbi-card-title"><i class="bi bi-pie-chart-fill"></i> Répartition des PRs</div>
+                <apx-chart [series]="prDonutChart.series!" [chart]="prDonutChart.chart!" [labels]="prDonutChart.labels!" [colors]="prDonutChart.colors!" [plotOptions]="prDonutChart.plotOptions!" [dataLabels]="prDonutChart.dataLabels!" [legend]="prDonutChart.legend!" [responsive]="prDonutChart.responsive!"></apx-chart>
+              </div>
+            </div>
+          }
+
+          <!-- PAGE : Contributeurs -->
+          @if (activePage === 'contributors') {
+            <div class="pbi-page-title">Analyse des contributeurs</div>
+            <div class="kpi-row">
+              <div class="kpi-card"><div class="kpi-icon contributors"><i class="bi bi-people-fill"></i></div><div class="kpi-body"><div class="kpi-value">{{ dashboardData.contributions.total }}</div><div class="kpi-label">Contributeurs</div></div></div>
+              <div class="kpi-card" [class]="'kpi-bf-' + getBusFactorColor(dashboardData.contributions.busFactor)">
+                <div class="kpi-icon bus"><i class="bi bi-bus-front-fill"></i></div>
+                <div class="kpi-body"><div class="kpi-value">{{ dashboardData.contributions.busFactor }}</div><div class="kpi-label">Bus Factor</div></div>
+              </div>
+            </div>
+            <div class="charts-2col">
+              <div class="pbi-card wide">
+                <div class="pbi-card-title"><i class="bi bi-bar-chart-fill"></i> Top contributeurs (commits)</div>
+                <apx-chart [series]="contributorsChart.series!" [chart]="contributorsChart.chart!" [xaxis]="contributorsChart.xaxis!" [yaxis]="contributorsChart.yaxis!" [plotOptions]="contributorsChart.plotOptions!" [dataLabels]="contributorsChart.dataLabels!" [colors]="contributorsChart.colors!" [grid]="contributorsChart.grid!" [tooltip]="contributorsChart.tooltip!"></apx-chart>
+              </div>
+              <div class="pbi-card">
+                <div class="pbi-card-title"><i class="bi bi-trophy-fill"></i> Classement</div>
+                <div class="contrib-ranking">
+                  @for (dev of dashboardData.contributions.topContributors; track dev.email; let i = $index) {
+                    <div class="rank-row">
+                      <div class="rank-medal">
+                        @if (i === 0) { 🥇 } @else if (i === 1) { 🥈 } @else if (i === 2) { 🥉 }
+                        @else { <span class="rank-num">{{ i+1 }}</span> }
+                      </div>
+                      <div class="rank-avatar">{{ dev.name.charAt(0).toUpperCase() }}</div>
+                      <div class="rank-info"><div class="rank-name">{{ dev.name }}</div><div class="rank-score">Score : {{ dev.score.toFixed(1) }}</div></div>
+                      <div class="rank-commits">{{ dev.commits }} commits</div>
+                    </div>
+                  }
+                </div>
+              </div>
+            </div>
+            <div class="pbi-card bf-detail">
+              <div class="pbi-card-title"><i class="bi bi-bus-front-fill"></i> Bus Factor — détail</div>
+              <div class="bf-explanation">
+                <div class="bf-big" [class]="'bf-' + getBusFactorColor(dashboardData.contributions.busFactor)">{{ dashboardData.contributions.busFactor }}</div>
+                <div class="bf-text">
+                  @if (dashboardData.contributions.busFactor <= 1) {
+                    <span class="bf-tag danger"><i class="bi bi-exclamation-triangle-fill"></i> Risque critique</span>
+                    <p>Seulement <strong>1 développeur</strong> concentre 80% du code.</p>
+                  } @else if (dashboardData.contributions.busFactor <= 2) {
+                    <span class="bf-tag warning"><i class="bi bi-exclamation-triangle-fill"></i> Risque modéré</span>
+                    <p><strong>{{ dashboardData.contributions.busFactor }} développeurs</strong> couvrent 80% du code. Une meilleure distribution est recommandée.</p>
+                  } @else {
+                    <span class="bf-tag success"><i class="bi bi-check-circle-fill"></i> Bonne distribution</span>
+                    <p><strong>{{ dashboardData.contributions.busFactor }} développeurs</strong> couvrent 80% du code.</p>
+                  }
+                </div>
+              </div>
+            </div>
+          }
+
+          <!-- PAGE : Pushes -->
+          @if (activePage === 'pushes') {
+            <div class="pbi-page-title">Analyse des pushes</div>
+            <div class="kpi-row">
+              <div class="kpi-card"><div class="kpi-icon pushes"><i class="bi bi-cloud-upload-fill"></i></div><div class="kpi-body"><div class="kpi-value">{{ dashboardData.pushes.total }}</div><div class="kpi-label">Total pushes</div></div></div>
+              <div class="kpi-card"><div class="kpi-icon added"><i class="bi bi-shield-check-fill"></i></div><div class="kpi-body"><div class="kpi-value" style="color:#1D9E75">{{ dashboardData.pushes.total - dashboardData.pushes.forcePushCount }}</div><div class="kpi-label">Push normaux</div></div></div>
+              <div class="kpi-card" [class]="dashboardData.pushes.forcePushCount > 0 ? 'kpi-bf-danger' : ''">
+                <div class="kpi-icon deleted"><i class="bi bi-shield-exclamation"></i></div>
+                <div class="kpi-body"><div class="kpi-value" [style.color]="dashboardData.pushes.forcePushCount > 0 ? '#E24B4A' : '#1D9E75'">{{ dashboardData.pushes.forcePushCount }}</div><div class="kpi-label">Force pushes</div></div>
+              </div>
+            </div>
+            <div class="charts-center">
+              <div class="pbi-card" style="flex:1">
+                <div class="pbi-card-title"><i class="bi bi-bar-chart-fill"></i> Répartition des pushes</div>
+                <apx-chart [series]="pushesChart.series!" [chart]="pushesChart.chart!" [xaxis]="pushesChart.xaxis!" [plotOptions]="pushesChart.plotOptions!" [dataLabels]="pushesChart.dataLabels!" [colors]="pushesChart.colors!" [grid]="pushesChart.grid!" [tooltip]="pushesChart.tooltip!"></apx-chart>
+              </div>
+              @if (dashboardData.pushes.forcePushCount > 0) {
+                <div class="pbi-card alert-card">
+                  <i class="bi bi-exclamation-triangle-fill alert-icon"></i>
+                  <div class="alert-title">Force push détecté !</div>
+                  <p class="alert-desc">{{ dashboardData.pushes.forcePushCount }} force push(es) ont été détectés.</p>
+                </div>
+              }
+            </div>
+          }
+
+          <!-- PAGE : Risques (§3.8) -->
+          @if (activePage === 'risks') {
+            <div class="pbi-page-title">Évaluation des risques</div>
+            @if (riskLoading) { <div class="pbi-loading"><div class="pbi-spinner"></div><span>Chargement de l'analyse de risque...</span></div> }
+            @if (!riskLoading && (!riskData || riskData.message)) {
+              <div class="empty-state"><i class="bi bi-shield-fill-exclamation"></i><p>Aucune analyse de risque disponible</p><small>Lancez une analyse sur ce repository pour calculer le score de stabilité</small></div>
+            }
+            @if (!riskLoading && riskData && !riskData.message) {
+              <div class="kpi-row">
+                <div class="kpi-card" [class]="'kpi-bf-' + (riskData.riskLevel === 'STABLE' ? 'success' : riskData.riskLevel === 'MODERATE' ? 'warning' : 'danger')">
+                  <div class="kpi-icon bus"><i class="bi bi-speedometer2"></i></div>
+                  <div class="kpi-body"><div class="kpi-value">{{ riskData.stabilityScore }}<span style="font-size:13px;color:#9ca3af;">/100</span></div><div class="kpi-label">Score de stabilité</div></div>
+                </div>
+                <div class="kpi-card"><div class="kpi-icon deleted"><i class="bi bi-fire"></i></div><div class="kpi-body"><div class="kpi-value" style="color:#E24B4A">{{ riskData.hotspotCount }}</div><div class="kpi-label">Hotspots détectés</div></div></div>
+                <div class="kpi-card"><div class="kpi-icon commits"><i class="bi bi-hourglass-split"></i></div><div class="kpi-body"><div class="kpi-value">{{ formatTechnicalDebt(riskData.technicalDebtMinutes) }}</div><div class="kpi-label">Dette technique estimée</div></div></div>
+              </div>
+              <div class="pbi-card risk-level-card" [class]="getRiskLevelClass(riskData.riskLevel)">
+                <div class="risk-level-icon" [class]="getRiskLevelClass(riskData.riskLevel)">
+                  @if (riskData.riskLevel === 'STABLE') { <i class="bi bi-check-circle-fill"></i> }
+                  @else if (riskData.riskLevel === 'MODERATE') { <i class="bi bi-exclamation-triangle-fill"></i> }
+                  @else { <i class="bi bi-x-octagon-fill"></i> }
+                </div>
+                <div class="risk-level-body">
+                  <span class="risk-level-tag" [class]="getRiskLevelClass(riskData.riskLevel)">{{ getRiskLevelLabel(riskData.riskLevel) }}</span>
+                  @if (riskData.riskLevel === 'STABLE') { <p>Le projet présente une bonne stabilité.</p> }
+                  @else if (riskData.riskLevel === 'MODERATE') { <p>Le projet présente quelques signaux de risque. Une vigilance est recommandée.</p> }
+                  @else { <p>Le projet présente un risque élevé d'instabilité. Une revue approfondie est recommandée.</p> }
+                  @if (riskData.calculatedAt) { <span class="risk-calculated-at"><i class="bi bi-clock"></i> Calculé le {{ formatDate(riskData.calculatedAt) }}</span> }
+                </div>
+              </div>
+              <div class="charts-2col" style="margin-top:16px;">
+                <div class="pbi-card">
+                  <div class="pbi-card-title"><i class="bi bi-info-circle"></i> Méthodologie</div>
+                  <div class="risk-methodology">
+                    <p>Le score de stabilité combine 4 facteurs pondérés :</p>
+                    <ul>
+                      <li><strong>30%</strong> — Proportion de commits hotspots (volumineux)</li>
+                      <li><strong>25%</strong> — Bus factor (concentration du savoir)</li>
+                      <li><strong>25%</strong> — Taux de force-push (réécriture d'historique)</li>
+                      <li><strong>20%</strong> — Taux de fusion des Pull Requests</li>
+                    </ul>
+                  </div>
+                </div>
+                <div class="pbi-card">
+                  <div class="pbi-card-title"><i class="bi bi-lightbulb-fill"></i> Recommandation</div>
+                  <div class="risk-methodology">
+                    @if (riskData.hotspotCount > 0) {
+                      <p><strong>{{ riskData.hotspotCount }} commit(s) hotspot</strong> détecté(s) — méritent une revue de code ciblée.</p>
+                    } @else {
+                      <p>Aucun commit anormalement volumineux détecté. Bonne pratique de découpage des changements.</p>
+                    }
+                  </div>
+                </div>
+              </div>
+            }
+          }
+
+          <!-- ═══════════════════════════════════════════════════════ -->
+          <!-- PAGE : Qualité du code (§3.7 SonarQube)                -->
+          <!-- ═══════════════════════════════════════════════════════ -->
+          @if (activePage === 'quality') {
+            <div class="pbi-page-title"><i class="bi bi-stars"></i> Qualité du code</div>
+
+            @if (qualityLoading) {
+              <div class="pbi-loading"><div class="pbi-spinner"></div><span>Chargement de l'analyse de qualité...</span></div>
+            }
+
+            @if (!qualityLoading && (!qualityData || qualityData.message)) {
+              <div class="empty-state">
+                <i class="bi bi-stars"></i>
+                <p>Aucune analyse de qualité disponible</p>
+                <small>Lancez une analyse sur ce repository pour obtenir les métriques SonarQube</small>
+              </div>
+            }
+
+            @if (!qualityLoading && qualityData && !qualityData.message) {
+
+              <!-- KPI row -->
+              <div class="kpi-row">
+                <div class="kpi-card">
+                  <div class="kpi-icon commits"><i class="bi bi-clipboard2-pulse-fill"></i></div>
+                  <div class="kpi-body">
+                    <div class="kpi-value" [class]="getQualityClass(qualityData.maintainabilityIndex)">
+                      {{ qualityData.maintainabilityIndex | number:'1.0-0' }}<span style="font-size:13px;color:#9ca3af;">/100</span>
+                    </div>
+                    <div class="kpi-label">Maintenabilité</div>
+                  </div>
+                </div>
+                <div class="kpi-card">
+                  <div class="kpi-icon deleted"><i class="bi bi-files"></i></div>
+                  <div class="kpi-body">
+                    <div class="kpi-value" [class]="getDuplicationClass(qualityData.duplicationPercent)">
+                      {{ qualityData.duplicationPercent | number:'1.1-1' }}%
+                    </div>
+                    <div class="kpi-label">Duplication</div>
+                  </div>
+                </div>
+                <div class="kpi-card">
+                  <div class="kpi-icon branches"><i class="bi bi-diagram-3-fill"></i></div>
+                  <div class="kpi-body">
+                    <div class="kpi-value" [class]="getComplexityClass(qualityData.complexity)">
+                      {{ qualityData.complexity | number:'1.0-0' }}
+                    </div>
+                    <div class="kpi-label">Complexité</div>
+                  </div>
+                </div>
+                <div class="kpi-card">
+                  <div class="kpi-icon deleted"><i class="bi bi-bug-fill"></i></div>
+                  <div class="kpi-body">
+                    <div class="kpi-value" [class]="getCodeSmellsClass(qualityData.codeSmells)">
+                      {{ qualityData.codeSmells }}
+                    </div>
+                    <div class="kpi-label">Code Smells</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Grille 2 colonnes détaillée -->
+              <div class="charts-2col" style="margin-top:16px;">
+
+                <!-- Maintenabilité -->
+                <div class="pbi-card">
+                  <div class="pbi-card-title"><i class="bi bi-clipboard2-pulse-fill"></i> Indice de maintenabilité</div>
+                  <div class="quality-gauge-wrapper">
+                    <div class="quality-gauge" [class]="getQualityClass(qualityData.maintainabilityIndex)">
+                      <span class="quality-gauge-value">{{ qualityData.maintainabilityIndex | number:'1.0-0' }}</span>
+                      <span class="quality-gauge-max">/100</span>
+                    </div>
+                    <div class="quality-gauge-bar">
+                      <div class="quality-gauge-fill" [class]="getQualityClass(qualityData.maintainabilityIndex)" [style.width.%]="qualityData.maintainabilityIndex"></div>
+                    </div>
+                    <div class="quality-gauge-label" [class]="getQualityClass(qualityData.maintainabilityIndex)">{{ getQualityLabel(qualityData.maintainabilityIndex) }}</div>
+                    <p class="quality-description">Mesure la facilité à maintenir et faire évoluer le code. Un score élevé indique un code bien structuré.</p>
+                  </div>
+                </div>
+
+                <!-- Complexité -->
+                <div class="pbi-card">
+                  <div class="pbi-card-title"><i class="bi bi-diagram-3-fill"></i> Complexité cyclomatique</div>
+                  <div class="quality-gauge-wrapper">
+                    <div class="quality-gauge" [class]="getComplexityClass(qualityData.complexity)">
+                      <span class="quality-gauge-value">{{ qualityData.complexity | number:'1.0-0' }}</span>
+                    </div>
+                    <div class="quality-complexity-scale">
+                      <div class="scale-item quality-excellent">0-10 Faible</div>
+                      <div class="scale-item quality-good">11-20 Modérée</div>
+                      <div class="scale-item quality-average">21-50 Élevée</div>
+                      <div class="scale-item quality-poor">50+ Critique</div>
+                    </div>
+                    <div class="quality-gauge-label" [class]="getComplexityClass(qualityData.complexity)">{{ getComplexityLabel(qualityData.complexity) }}</div>
+                    <p class="quality-description">Nombre de chemins d'exécution indépendants. Une complexité faible facilite les tests et la maintenance.</p>
+                  </div>
+                </div>
+
+                <!-- Duplication -->
+                <div class="pbi-card">
+                  <div class="pbi-card-title"><i class="bi bi-files"></i> Duplication de code</div>
+                  <div class="quality-gauge-wrapper">
+                    <div class="quality-gauge" [class]="getDuplicationClass(qualityData.duplicationPercent)">
+                      <span class="quality-gauge-value">{{ qualityData.duplicationPercent | number:'1.1-1' }}</span>
+                      <span class="quality-gauge-max">%</span>
+                    </div>
+                    <div class="quality-gauge-bar">
+                      <div class="quality-gauge-fill" [class]="getDuplicationClass(qualityData.duplicationPercent)" [style.width.%]="qualityData.duplicationPercent"></div>
+                    </div>
+                    <p class="quality-description">Pourcentage de lignes de code dupliquées. En dessous de 10% est acceptable, au-dessus de 20% est critique.</p>
+                  </div>
+                </div>
+
+                <!-- Code Smells -->
+                <div class="pbi-card">
+                  <div class="pbi-card-title"><i class="bi bi-bug-fill"></i> Code Smells</div>
+                  <div class="quality-gauge-wrapper">
+                    <div class="quality-gauge" [class]="getCodeSmellsClass(qualityData.codeSmells)">
+                      <span class="quality-gauge-value">{{ qualityData.codeSmells }}</span>
+                    </div>
+                    <p class="quality-description">Nombre de mauvaises pratiques détectées par SonarQube (code difficile à lire, classes trop longues, méthodes complexes).</p>
+                    <div class="quality-recommendation">
+                      <i class="bi bi-lightbulb-fill"></i>
+                      @if (qualityData.codeSmells === 0) { <span>Excellent ! Aucun code smell détecté.</span> }
+                      @else if (qualityData.codeSmells <= 20) { <span>Bon niveau. Quelques points d'amélioration mineurs.</span> }
+                      @else if (qualityData.codeSmells <= 50) { <span>À surveiller. Une session de refactoring est recommandée.</span> }
+                      @else { <span>Critique. Une refonte partielle du code est fortement recommandée.</span> }
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- Footer date -->
+              @if (qualityData.calculatedAt) {
+                <div class="quality-footer">
+                  <i class="bi bi-cpu-fill"></i> Analyse SonarQube effectuée le {{ formatDate(qualityData.calculatedAt) }}
+                </div>
+              }
+            }
+          }
+
+        </div>
+
+        <!-- Power BI — onglets en bas -->
+        <div class="pbi-tabs">
+          @for (page of pages; track page.key) {
+            <button class="pbi-tab" [class.active]="activePage === page.key" (click)="switchPage(page.key)">
+              <i class="bi" [class]="page.icon"></i> {{ page.label }}
+            </button>
+          }
+        </div>
+      </div>
+    }
+
+    @if (!gitLoading && !dashboardData && repositories.length === 0) {
+      <div class="empty-state">
+        <i class="bi bi-folder2-open"></i>
+        <p>Aucun repository disponible</p>
+        <small>Synchronisez d'abord vos repos Git</small>
+      </div>
+    }
+  }
+
+</div>

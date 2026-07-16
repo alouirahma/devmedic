@@ -1,0 +1,115 @@
+@import 'bootstrap/dist/css/bootstrap.min.css';
+@import 'bootstrap-icons/font/bootstrap-icons.css';
+
+:root {
+  --dm-primary: #0C447C;
+  --dm-accent: #378ADD;
+  --dm-success: #1D9E75;
+  --dm-warning: #BA7517;
+  --dm-light: #E6F1FB;
+  --dm-dark: #2C2C2A;
+  --dm-sidebar-width: 240px;
+}
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Segoe UI', sans-serif;
+  background: #F4F6F9;
+  color: var(--dm-dark);
+}
+
+.dm-sidebar {
+  width: var(--dm-sidebar-width);
+  min-height: 100vh;
+  background: var(--dm-primary);
+  position: fixed;
+  top: 0; left: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+
+.dm-main {
+  margin-left: var(--dm-sidebar-width);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.dm-navbar {
+  background: white;
+  height: 60px;
+  border-bottom: 1px solid #e0e0e0;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 99;
+}
+
+.dm-content {
+  padding: 24px;
+  flex: 1;
+}
+
+.dm-card {
+  background: white;
+  border-radius: 12px;
+  border: 0.5px solid #e0e0e0;
+  padding: 20px;
+}
+
+.dm-stat-card {
+  background: white;
+  border-radius: 12px;
+  border: 0.5px solid #e0e0e0;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+
+  .stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+  }
+
+  .stat-value {
+    font-size: 24px;
+    font-weight: 500;
+    color: var(--dm-primary);
+  }
+
+  .stat-label {
+    font-size: 13px;
+    color: #888;
+  }
+}
+
+.badge-admin    { background: #E6F1FB; color: #0C447C; }
+.badge-team_lead { background: #FAEEDA; color: #854F0B; }
+.badge-developer { background: #EAF3DE; color: #3B6D11; }
+.badge-analyst  { background: #EEEDFE; color: #3C3489; }
+.badge-viewer   { background: #F1EFE8; color: #5F5E5A; }
+
+.role-badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+
+  
+}/* You can add global styles to this file, and also import other style files */

@@ -1,0 +1,67 @@
+version: "3.8"
+
+services:
+
+  gestion-user:
+    build:
+      context: ./gestionUser
+      dockerfile: Dockerfile
+    container_name: gestion-user
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-app:5432/devmedic
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_APP_PASSWORD}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://auth.localhost/realms/devmedic
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/devmedic/protocol/openid-connect/certs
+    networks:
+      - traefik-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.gestion-user.rule=Host(`gestion-user.localhost`)"
+      - "traefik.http.routers.gestion-user.entrypoints=web"
+      - "traefik.http.services.gestion-user.loadbalancer.server.port=8081"
+    healthcheck:
+      test: ["CMD", "sh", "-c", "nc -zv localhost 8081 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  gestion-git:
+    build:
+      context: ./gestionGit
+      dockerfile: Dockerfile
+    container_name: gestion-git
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    environment:
+      # 🔥 AJOUT DES VARIABLES POSTGRESQL (MANQUANTES)
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-app:5432/devmedic
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_APP_PASSWORD}
+      # Variables existantes
+      SONAR_URL: http://sonarqube:9000
+      SONAR_TOKEN: ${SONAR_TOKEN}
+      SONAR_SCANNER_JAVA_HOME: /opt/java/openjdk
+    networks:
+      - traefik-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.gestion-git.rule=Host(`gestion-git.localhost`)"
+      - "traefik.http.routers.gestion-git.entrypoints=web"
+      - "traefik.http.services.gestion-git.loadbalancer.server.port=8082"
+    healthcheck:
+      test: ["CMD", "sh", "-c", "nc -zv localhost 8082 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  traefik-net:
+    external: true
