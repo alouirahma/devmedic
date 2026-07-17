@@ -1,4 +1,4 @@
-name: CI - Build, Tests et Qualité
+name: CI - Build, Tests, Qualité et Images Docker
 
 on:
   push:
@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # nécessaire pour l'analyse SonarCloud (historique complet)
+          fetch-depth: 0
 
       - name: Configurer Java 17
         uses: actions/setup-java@v4
@@ -77,3 +77,51 @@ jobs:
         timeout-minutes: 5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  docker-build-push-gestion-git:
+    name: Build & Push image gestion-git
+    needs: [build-gestion-git, build-gestion-user]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Connexion Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build et Push image gestion-git
+        uses: docker/build-push-action@v5
+        with:
+          context: devMedic/ms-Backend/gestionGit
+          file: devMedic/ms-Backend/gestionGit/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/devmedic-gestion-git:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/devmedic-gestion-git:${{ github.sha }}
+
+  docker-build-push-gestion-user:
+    name: Build & Push image gestion-user
+    needs: [build-gestion-git, build-gestion-user]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Connexion Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build et Push image gestion-user
+        uses: docker/build-push-action@v5
+        with:
+          context: devMedic/ms-Backend/gestionUser
+          file: devMedic/ms-Backend/gestionUser/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/devmedic-gestion-user:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/devmedic-gestion-user:${{ github.sha }}
