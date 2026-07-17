@@ -1,4 +1,4 @@
-name: CI - Build et Tests Backend
+name: CI - Build, Tests et Qualité
 
 on:
   push:
@@ -11,8 +11,9 @@ jobs:
     name: Build gestion-git
     runs-on: ubuntu-latest
     steps:
-      - name: Récupérer le code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # nécessaire pour l'analyse SonarCloud (historique complet)
 
       - name: Configurer Java 17
         uses: actions/setup-java@v4
@@ -29,8 +30,9 @@ jobs:
     name: Build gestion-user
     runs-on: ubuntu-latest
     steps:
-      - name: Récupérer le code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Configurer Java 17
         uses: actions/setup-java@v4
@@ -42,3 +44,36 @@ jobs:
       - name: Build avec Maven
         working-directory: devMedic/ms-Backend/gestionUser
         run: mvn clean compile -B
+
+  quality-gate:
+    name: Analyse qualité SonarCloud
+    needs: [build-gestion-git, build-gestion-user]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configurer Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Compiler les deux services (pour les binaires Java)
+        run: |
+          cd devMedic/ms-Backend/gestionGit && mvn clean compile -B
+          cd ../gestionUser && mvn clean compile -B
+
+      - name: Analyse SonarCloud
+        uses: SonarSource/sonarqube-scan-action@v4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Vérifier le Quality Gate
+        uses: SonarSource/sonarqube-quality-gate-action@v1
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
