@@ -13,14 +13,14 @@ WORKDIR /app
 #   - git    : pour cloner temporairement le code source du repo à analyser
 #   - curl/unzip : pour télécharger et installer le SonarScanner CLI
 #   - bash   : le script sonar-scanner fourni par SonarSource attend bash, pas sh
-RUN apk add --no-cache git curl unzip bash
+RUN apk add --no-cache bash curl git unzip
 RUN git config --system http.version HTTP/1.1
 RUN git config --system http.postBuffer 524288000
 
 
 ENV SONAR_SCANNER_VERSION=5.0.1.3006
 RUN curl -sSfo /tmp/sonar-scanner.zip \
-      https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SONAR_SCANNER_VERSION}-linux.zip \
+      "https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SONAR_SCANNER_VERSION}-linux.zip" \
     && unzip -q /tmp/sonar-scanner.zip -d /opt \
     && mv /opt/sonar-scanner-${SONAR_SCANNER_VERSION}-linux /opt/sonar-scanner \
     && rm /tmp/sonar-scanner.zip \
