@@ -10,13 +10,16 @@ services:
     restart: unless-stopped
     ports:
       - "8081:8081"
+    extra_hosts:
+          - "auth.localhost:host-gateway"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-app:5432/devmedic
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_APP_PASSWORD}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: http://auth.localhost/realms/devmedic
-      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/devmedic/protocol/openid-connect/certs
+      python --versionSPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/devmedic/protocol/openid-connect/certs
+      KEYCLOAK_AUTH_SERVER_URL: http://keycloak:8080
     networks:
       - traefik-net
     labels:
@@ -61,7 +64,22 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-
+  ia-prediction:
+   build:
+    context: ./ia-risk-prediction
+    dockerfile: Dockerfile
+   container_name: ia-prediction
+   restart: unless-stopped
+   ports:
+    - "8000:8000"
+   networks:
+    - traefik-net
+   healthcheck:
+        test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" ]
+        interval: 30s
+        timeout: 10s
+        retries: 3
+        start_period: 15s
 networks:
   traefik-net:
     external: true

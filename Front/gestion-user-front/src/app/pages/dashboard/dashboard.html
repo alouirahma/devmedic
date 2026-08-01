@@ -305,10 +305,69 @@
             </div>
           }
 
-          <!-- PAGE : Risques (§3.8) -->
+          <!-- PAGE : Risques (§3.8) + Prédiction IA -->
           @if (activePage === 'risks') {
             <div class="pbi-page-title">Évaluation des risques</div>
-            @if (riskLoading) { <div class="pbi-loading"><div class="pbi-spinner"></div><span>Chargement de l'analyse de risque...</span></div> }
+
+            <!-- Carte Prédiction IA — Signes vitaux -->
+            <div class="pbi-card vitals-card" *ngIf="predictionData">
+              <div class="vitals-header">
+                <div class="vitals-title-group">
+                  <i class="bi bi-heart-pulse-fill vitals-icon"></i>
+                  <p class="vitals-title">Signes vitaux du projet</p>
+                </div>
+                <span class="vitals-bpm">{{ predictionBpm() }} bpm</span>
+              </div>
+
+              <div class="ecg-wrapper">
+                <svg [attr.viewBox]="'0 0 400 90'" preserveAspectRatio="none" class="ecg-svg">
+                  <line x1="0" y1="45" x2="400" y2="45" class="ecg-baseline"/>
+                  <path #ecgPath [attr.d]="ecgPathData()" fill="none"
+                        [attr.stroke]="predictionStroke()" stroke-width="2.5"
+                        stroke-linecap="round" stroke-linejoin="round"
+                        class="ecg-path"/>
+                </svg>
+              </div>
+
+              <div class="vitals-metrics">
+                <div class="vitals-metric-box">
+                  <p class="metric-label">Tension actuelle</p>
+                  <p class="metric-value">{{ currentTension() }}</p>
+                </div>
+                <div class="vitals-metric-box">
+                  <p class="metric-label">Projection 30j</p>
+                  <p class="metric-value" [class]="'metric-' + predictionColor()">{{ futureTension() }}</p>
+                </div>
+              </div>
+
+              <p class="vitals-diagnostic">{{ predictionMessage() }}</p>
+
+              <button class="pred-toggle-btn" (click)="showPredictionFactors = !showPredictionFactors">
+                {{ showPredictionFactors ? 'Masquer' : 'Voir' }} le bilan détaillé
+                <i class="bi" [class.bi-chevron-down]="!showPredictionFactors" [class.bi-chevron-up]="showPredictionFactors"></i>
+              </button>
+
+              <div class="pred-factors" *ngIf="showPredictionFactors">
+                <div class="factor-row" *ngFor="let f of topFactorsList()">
+                  <span class="factor-label">{{ labelFor(f.feature) }}</span>
+                  <div class="factor-bar-bg">
+                    <div class="factor-bar-fill" [style.width.%]="f.importance * 400"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="pbi-card" *ngIf="!predictionData">
+              <div class="pbi-card-title"><i class="bi bi-heart-pulse-fill"></i> Signes vitaux du projet</div>
+              <div class="empty-state">
+                <i class="bi bi-robot"></i>
+                <p>Aucune prédiction disponible. Lancez une analyse complète pour l'obtenir.</p>
+              </div>
+            </div>
+
+            @if (riskLoading) { 
+              <div class="pbi-loading"><div class="pbi-spinner"></div><span>Chargement de l'analyse de risque...</span></div> 
+            }
             @if (!riskLoading && (!riskData || riskData.message)) {
               <div class="empty-state"><i class="bi bi-shield-fill-exclamation"></i><p>Aucune analyse de risque disponible</p><small>Lancez une analyse sur ce repository pour calculer le score de stabilité</small></div>
             }
@@ -362,9 +421,7 @@
             }
           }
 
-          <!-- ═══════════════════════════════════════════════════════ -->
-          <!-- PAGE : Qualité du code (§3.7 SonarQube)                -->
-          <!-- ═══════════════════════════════════════════════════════ -->
+          <!-- PAGE : Qualité du code (§3.7 SonarQube) -->
           @if (activePage === 'quality') {
             <div class="pbi-page-title"><i class="bi bi-stars"></i> Qualité du code</div>
 

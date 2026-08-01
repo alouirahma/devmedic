@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
+
 import java.time.LocalDateTime;
 
 @Entity
@@ -25,14 +26,12 @@ public class Commit {
     private String authorName;
 
     private String authorEmail;
-
     private LocalDateTime committedAt;
 
     @Column(columnDefinition = "TEXT")
     private String message;
 
     private int linesAdded;
-
     private int linesDeleted;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -40,11 +39,11 @@ public class Commit {
     @JsonBackReference
     private Branch branch;
 
-    @OneToOne(mappedBy = "commit", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @OneToOne(mappedBy = "commit", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference
     private QualityMetric qualityMetric;
 
-    @OneToOne(mappedBy = "commit", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @OneToOne(mappedBy = "commit", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonManagedReference
     private RiskScore riskScore;
 }

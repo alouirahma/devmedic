@@ -85,7 +85,7 @@ public class RiskAnalysisService {
         // ── 4. Dette technique estimée ────────────────────────────────────────
         long technicalDebtMinutes = hotspotCount * MINUTES_PER_HOTSPOT;
 
-        // ── 5. Persistance — attachée au commit le plus récent ───────────────
+
         // ── 5. Persistance — un seul score par repository ────────────────────
         Commit latestCommit = commits.stream()
                 .max(Comparator.comparing(Commit::getCommittedAt))
@@ -128,7 +128,7 @@ public class RiskAnalysisService {
     // Helpers
     // ────────────────────────────────────────────────────────────────────────
 
-    private int computeBusFactor(List<Commit> commits) {
+     int computeBusFactor(List<Commit> commits) {
         Map<String, Long> byAuthor = commits.stream()
                 .collect(Collectors.groupingBy(Commit::getAuthorName, Collectors.counting()));
 
@@ -147,7 +147,7 @@ public class RiskAnalysisService {
         return count;
     }
 
-    private double normalizeBusFactor(int busFactor) {
+     double normalizeBusFactor(int busFactor) {
         // bus factor 1 = critique (score 0) ; 4+ = très bon (score 1)
         if (busFactor <= 1) return 0.0;
         if (busFactor >= 4) return 1.0;

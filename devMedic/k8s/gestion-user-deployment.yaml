@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gestion-user
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gestion-user
+  template:
+    metadata:
+      labels:
+        app: gestion-user
+    spec:
+      containers:
+        - name: gestion-user
+          image: rahmaaloui/devmedic-gestion-user:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8081
+          env:
+            - name: KEYCLOAK_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: devmedic-secrets
+                  key: KEYCLOAK_ADMIN_PASSWORD
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://postgres-app:5432/devmedic"
+            - name: SPRING_DATASOURCE_USERNAME
+              value: "postgres"
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: devmedic-secrets
+                  key: POSTGRES_APP_PASSWORD
+            - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI
+              value: "http://auth.localhost/realms/devmedic"
+            - name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI
+              value: "http://keycloak:8080/realms/devmedic/protocol/openid-connect/certs"
+
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8081
+            initialDelaySeconds: 40
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8081
+            initialDelaySeconds: 60
+            periodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gestion-user
+spec:
+  type: LoadBalancer
+  selector:
+    app: gestion-user
+  ports:
+    - port: 8081
+      targetPort: 8081

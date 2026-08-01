@@ -63,7 +63,7 @@ jobs:
 
       - name: Compiler les deux services (pour les binaires Java)
         run: |
-          cd devMedic/ms-Backend/gestionGit && mvn clean compile -B
+          cd devMedic/ms-Backend/gestionGit && mvn clean verify -B
           cd ../gestionUser && mvn clean compile -B
 
       - name: Analyse SonarCloud

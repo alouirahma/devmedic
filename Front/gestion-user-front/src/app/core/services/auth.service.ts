@@ -8,19 +8,28 @@ import { GitService } from './git.service';
 export class AuthService {
 
   private tokenKey = 'devmedic_token';
+  private keycloakTokenKey = 'keycloak_token'; // 🔥 AJOUT
   currentUser = signal<Profile | null>(null);
 
   constructor(private http: HttpClient, private gitService: GitService) {}
 
   setToken(token: string) {
-    localStorage.setItem(this.tokenKey, token)
+    // 🔥 STOCKER DANS LES DEUX CLÉS
+    localStorage.setItem(this.tokenKey, token);
+    localStorage.setItem(this.keycloakTokenKey, token);
+    
     this.gitService.syncAuto().subscribe(res => {
-  console.log(`✅ ${res.repositoriesImported} repos synchronisés automatiquement`);
-});
+      console.log(`✅ ${res.repositoriesImported} repos synchronisés automatiquement`);
+    });
   }
 
   getToken(): string | null {
-    return localStorage.getItem(this.tokenKey);
+    // 🔥 RÉCUPÉRER DEPUIS LES DEUX CLÉS
+    return localStorage.getItem(this.tokenKey) || localStorage.getItem(this.keycloakTokenKey);
+  }
+
+  getGithubToken(): string | null {
+    return localStorage.getItem('github_token');
   }
 
   isLoggedIn(): boolean {
@@ -28,8 +37,19 @@ export class AuthService {
   }
 
   loadProfile() {
-    return this.http.get<Profile>('http://localhost:8081/api/users/me').pipe(
-      tap(profile => this.currentUser.set(profile))
+    const token = this.getToken();
+    if (!token) {
+      console.warn('⏭️ Aucun token pour charger le profil');
+      return this.http.get<Profile>('http://localhost:8081/api/users/me');
+    }
+    
+    return this.http.get<Profile>('http://localhost:8081/api/users/me', {
+      headers: { Authorization: `Bearer ${token}` }
+    }).pipe(
+      tap(profile => {
+        console.log('✅ Profil chargé:', profile);
+        this.currentUser.set(profile);
+      })
     );
   }
 
@@ -47,8 +67,15 @@ export class AuthService {
   isDeveloper(): boolean { return this.hasRole('DEVELOPER'); }
 
   logout() {
+    // 🔥 SUPPRIMER TOUS LES TOKENS
     localStorage.removeItem(this.tokenKey);
+    localStorage.removeItem(this.keycloakTokenKey);
+    localStorage.removeItem('github_token');
+    localStorage.removeItem('devmedic_refresh_token');
+    
     this.currentUser.set(null);
+    
+    // Redirection vers Keycloak logout
     window.location.href =
       'http://auth.localhost/realms/devmedic/protocol/openid-connect/logout';
   }

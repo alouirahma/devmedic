@@ -122,6 +122,25 @@ export class Dashboard implements OnInit {
   qualityLoading = false;
   qualityAnalyzing = false;
 
+  // --- PREDICTION ---
+  predictionData: any = null;
+  showPredictionFactors = false;
+
+  private featureLabels: Record<string, string> = {
+    stability_score: 'Score de stabilité',
+    duplication_percent: 'Duplication de code',
+    reliability_issues: 'Bugs de fiabilité',
+    complexity: 'Complexité du code',
+    bus_factor: 'Concentration du savoir',
+    lines_of_code: 'Volume de code',
+    commit_count: 'Fréquence des commits',
+    code_smells: 'Mauvaises pratiques',
+    technical_debt_minutes: 'Dette technique',
+    test_coverage: 'Couverture de tests',
+    security_issues: 'Vulnérabilités',
+    hotspot_count: 'Zones à risque',
+  };
+
   commitsMonthlyChart!: Partial<CommitsChartOptions>;
   linesChart!: Partial<CommitsChartOptions>;
   prDonutChart!: Partial<DonutChartOptions>;
@@ -213,6 +232,7 @@ export class Dashboard implements OnInit {
     });
     this.loadRiskData(repoId);
     this.loadQualityData(repoId);
+    this.loadPredictionData(repoId);
   }
 
   // ─── RISK ──────────────────────────────────────────────────────────────
@@ -259,55 +279,46 @@ export class Dashboard implements OnInit {
   }
 
   // ─── QUALITY ──────────────────────────────────────────────────────────
-// ✅ §3.7 — Charge la dernière analyse qualité SonarQube pour ce repo.
-// Si aucune analyse n'existe encore, en déclenche une automatiquement.
-loadQualityData(repoId: number) {
-  this.qualityLoading = true;
-  this.qualityData = null;
-  const token = localStorage.getItem('devmedic_token');
-  this.http.get<QualityData>(`http://localhost:8082/api/git/quality/repository/${repoId}`, { headers: { Authorization: `Bearer ${token}` } }).subscribe({
-    next: (data) => { this.qualityData = data; this.qualityLoading = false; },
-    error: (err) => {
-      if (err.status === 404) {
-        // Pas encore d'analyse pour ce repo → on la lance automatiquement
-        this.qualityData = { duplicationPercent: 0, complexity: 0, maintainabilityIndex: 0, codeSmells: 0, message: "Analyse qualité en cours..." };
-        this.triggerQualityAnalysis(repoId);
-      } else {
-        this.qualityLoading = false;
-        console.error('❌ Error loading quality data:', err);
+
+  loadQualityData(repoId: number) {
+    this.qualityLoading = true;
+    this.qualityData = null;
+    const token = localStorage.getItem('devmedic_token');
+    this.http.get<QualityData>(`http://localhost:8082/api/git/quality/repository/${repoId}`, { headers: { Authorization: `Bearer ${token}` } }).subscribe({
+      next: (data) => { this.qualityData = data; this.qualityLoading = false; },
+      error: (err) => {
+        if (err.status === 404) {
+          this.qualityData = { duplicationPercent: 0, complexity: 0, maintainabilityIndex: 0, codeSmells: 0, message: "Analyse qualité en cours..." };
+          this.triggerQualityAnalysis(repoId);
+        } else {
+          this.qualityLoading = false;
+          console.error('❌ Error loading quality data:', err);
+        }
       }
-    }
-  });
-}
+    });
+  }
 
-// ✅ Déclenche un scan SonarQube pour ce repo (backend récupère automatiquement
-// le token GitHub/GitLab via gestion-user, rien à transmettre ici)
-private triggerQualityAnalysis(repoId: number) {
-  const token = localStorage.getItem('devmedic_token');
-  this.http.post(
-    `http://localhost:8082/api/git/quality/repository/${repoId}/analyze`,
-    null,
-    { headers: { Authorization: `Bearer ${token}` } }
-  ).subscribe({
-    next: () => {
-      // Scan terminé avec succès → on recharge les vraies données
-      this.loadQualityData(repoId);
-    },
-    error: (err) => {
-      this.qualityLoading = false;
-      console.error('❌ Erreur lors du scan qualité automatique:', err);
-      this.qualityData = {
-        duplicationPercent: 0, complexity: 0, maintainabilityIndex: 0, codeSmells: 0,
-        message: err.error?.error || "Échec de l'analyse qualité automatique."
-      };
-    }
-  });
-}
+  private triggerQualityAnalysis(repoId: number) {
+    const token = localStorage.getItem('devmedic_token');
+    this.http.post(
+      `http://localhost:8082/api/git/quality/repository/${repoId}/analyze`,
+      null,
+      { headers: { Authorization: `Bearer ${token}` } }
+    ).subscribe({
+      next: () => {
+        this.loadQualityData(repoId);
+      },
+      error: (err) => {
+        this.qualityLoading = false;
+        console.error('❌ Erreur lors du scan qualité automatique:', err);
+        this.qualityData = {
+          duplicationPercent: 0, complexity: 0, maintainabilityIndex: 0, codeSmells: 0,
+          message: err.error?.error || "Échec de l'analyse qualité automatique."
+        };
+      }
+    });
+  }
 
-  /**
-   * ✅ Lance une analyse qualité (scan SonarQube)
-   * POST /api/git/quality/repository/{repoId}/analyze
-   */
   analyzeQuality() {
     if (!this.selectedRepoId) return;
     this.qualityAnalyzing = true;
@@ -324,7 +335,6 @@ private triggerQualityAnalysis(repoId: number) {
       error: (err) => {
         this.qualityAnalyzing = false;
         console.error('❌ Erreur analyse qualité:', err);
-        // Afficher une erreur plus explicite
         const errorMsg = err.error?.error || err.error?.message || 'Erreur inconnue';
         this.qualityData = {
           duplicationPercent: 0,
@@ -336,6 +346,82 @@ private triggerQualityAnalysis(repoId: number) {
         };
       }
     });
+  }
+
+  // ─── PREDICTION ────────────────────────────────────────────────────────
+
+  loadPredictionData(repoId: number) {
+    const token = localStorage.getItem('devmedic_token');
+    this.http.get<any>(`http://localhost:8082/api/git/prediction/repository/${repoId}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    ).subscribe({
+      next: (data) => { this.predictionData = data; },
+      error: () => { this.predictionData = null; }
+    });
+  }
+
+  predictionPercent(): number {
+    return Math.round((this.predictionData?.probabilityCritical ?? 0) * 100);
+  }
+
+  predictionColor(): string {
+    const pct = this.predictionPercent();
+    if (pct < 30) return 'low';
+    if (pct < 60) return 'moderate';
+    return 'high';
+  }
+
+  predictionStroke(): string {
+    const colors: Record<string, string> = { low: '#22c55e', moderate: '#f59e0b', high: '#ef4444' };
+    return colors[this.predictionColor()];
+  }
+
+  predictionBpm(): number {
+    return Math.round(60 + this.predictionPercent() * 1.4);
+  }
+
+  currentTension(): string {
+    const stability = this.predictionData?.stabilityScore ?? 70;
+    return `${Math.round(stability)}/${Math.round(stability * 0.65)}`;
+  }
+
+  futureTension(): string {
+    const pct = this.predictionPercent();
+    const projected = Math.max(0, 100 - pct);
+    return `${Math.round(projected)}/${Math.round(projected * 0.65)}`;
+  }
+
+  predictionMessage(): string {
+    const pct = this.predictionPercent();
+    if (pct < 30) return "Rythme régulier. Le projet présente des signes vitaux stables, aucune anomalie détectée.";
+    if (pct < 60) return "Légère accélération observée. Une surveillance est recommandée dans les prochaines semaines.";
+    return "Rythme irrégulier détecté. Une intervention est conseillée rapidement.";
+  }
+
+  ecgPathData(): string {
+    const intensity = 0.4 + (this.predictionPercent() / 100) * 1.4;
+    const mid = 45, width = 400, segment = 40;
+    let d = `M 0 ${mid}`;
+    let x = 0;
+    while (x < width) {
+      d += ` L ${x} ${mid}`; x += segment * 0.5;
+      d += ` L ${x} ${mid}`; x += segment * 0.12;
+      d += ` L ${x} ${mid - 6}`; x += segment * 0.1;
+      d += ` L ${x} ${mid + 8 * intensity}`; x += segment * 0.13;
+      d += ` L ${x} ${mid - 28 * intensity}`; x += segment * 0.1;
+      d += ` L ${x} ${mid + 4}`; x += segment * 0.05;
+    }
+    return d;
+  }
+
+  topFactorsList(): { feature: string, importance: number, value: number }[] {
+    try {
+      return JSON.parse(this.predictionData?.topFactors ?? '[]').slice(0, 3);
+    } catch { return []; }
+  }
+
+  labelFor(feature: string): string {
+    return this.featureLabels[feature] ?? feature;
   }
 
   // ─── REPOSITORY ──────────────────────────────────────────────────────

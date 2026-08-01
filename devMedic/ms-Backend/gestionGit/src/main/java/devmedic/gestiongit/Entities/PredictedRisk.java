@@ -1,10 +1,8 @@
 package devmedic.gestiongit.Entities;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
-
 import java.time.LocalDateTime;
 
 @Entity
@@ -12,26 +10,23 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "git_risk_score")
-public class RiskScore {
+@Table(
+        name = "git_predicted_risk",
+        uniqueConstraints = @UniqueConstraint(columnNames = "repository_id")
+)
+public class PredictedRisk {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private double stabilityScore;
-    private int hotspotCount;
-    private long technicalDebtMinutes;
+    private double probabilityCritical;
+    private String riskLevel;          // LOW, MODERATE, HIGH
+    private String topFactorsJson;     // stocké en JSON brut pour simplicité
     private LocalDateTime calculatedAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "repository_id", nullable = false)
     @JsonBackReference
     private GitRepository repository;
-
-    // Référence informative : quel commit a déclenché ce calcul
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "commit_id", nullable = true)
-    @JsonBackReference
-    private Commit commit;
 }

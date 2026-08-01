@@ -5,6 +5,7 @@ import devmedic.gestiongit.JwtUtil;
 import devmedic.gestiongit.Services.ContributionService;
 import devmedic.gestiongit.Services.GitHubService;
 import devmedic.gestiongit.Services.GitLabService;
+import devmedic.gestiongit.Services.PredictionService;
 import devmedic.gestiongit.Services.RiskAnalysisService;
 import devmedic.gestiongit.Services.SonarQubeService;
 import devmedic.gestiongit.Services.UserClientService;
@@ -32,8 +33,9 @@ public class ImportController {
     private final UserClientService userClientService;
     private final GitRepositoryRep gitRepositoryRep;
     private final ContributionService contributionService;
-    private final RiskAnalysisService riskAnalysisService; // ✅ §3.8 — score de stabilité / hotspots
-    private final SonarQubeService sonarQubeService;        // ✅ §3.7 — qualité du code
+    private final RiskAnalysisService riskAnalysisService;   // ✅ §3.8 — score de stabilité / hotspots
+    private final SonarQubeService sonarQubeService;         // ✅ §3.7 — qualité du code
+    private final PredictionService predictionService;       // ✅ IA prédictive — risque futur (30j)
 
     @PostMapping("/github")
     public ResponseEntity<Map<String, Object>> importGitHub(
@@ -71,18 +73,10 @@ public class ImportController {
 
         String githubToken = null;
         String gitlabToken = null;
-
-        // JWT brut pour appeler gestion-user (réutilisé aussi pour le calcul de risque
-        // par séniorité — RiskAnalysisService.analyze a besoin de ce token pour
-        // récupérer la liste des utilisateurs avec leur séniorité)
         String jwtToken = authHeader.replace("Bearer ", "").trim();
 
         try {
-
-            // Récupération du Keycloak ID depuis le JWT
             String keycloakId = JwtUtil.extractKeycloakId(authHeader);
-
-            // Appel automatique du microservice gestion-user
             UserClientService.UserResponse userInfo =
                     userClientService.getUserByKeycloakId(keycloakId, jwtToken);
 
@@ -92,28 +86,21 @@ public class ImportController {
             }
 
             System.out.println("=== TOKENS RECUPERES DE GESTION-USER ===");
-            System.out.println("githubToken : " +
-                    (githubToken != null ? "***présent***" : "null"));
-            System.out.println("gitlabToken : " +
-                    (gitlabToken != null ? "***présent***" : "null"));
+            System.out.println("githubToken : " + (githubToken != null ? "***présent***" : "null"));
+            System.out.println("gitlabToken : " + (gitlabToken != null ? "***présent***" : "null"));
 
         } catch (Exception e) {
             System.err.println("Erreur récupération tokens : " + e.getMessage());
         }
 
-        // Fallback depuis le body
-        if ((githubToken == null || githubToken.isBlank())
-                && body.getGithubToken() != null) {
+        if ((githubToken == null || githubToken.isBlank()) && body.getGithubToken() != null) {
             githubToken = body.getGithubToken();
         }
-
-        if ((gitlabToken == null || gitlabToken.isBlank())
-                && body.getGitlabToken() != null) {
+        if ((gitlabToken == null || gitlabToken.isBlank()) && body.getGitlabToken() != null) {
             gitlabToken = body.getGitlabToken();
         }
 
         List<Long> repositoryIds = body.getRepositoryIds();
-
         if (repositoryIds == null || repositoryIds.isEmpty()) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "Aucun repository sélectionné"));
@@ -122,19 +109,16 @@ public class ImportController {
         List<GitRepository> repos = gitRepositoryRep.findAllById(repositoryIds);
 
         List<String> errors = new ArrayList<>();
-        // ✅ Résultats du calcul de risque par repo (§3.8), renvoyés au frontend
-        Map<String, Object> riskResults = new HashMap<>();
-        // ✅ Résultats de l'analyse qualité par repo (§3.7), renvoyés au frontend
-        Map<String, Object> qualityResults = new HashMap<>();
+        Map<String, Object> riskResults = new HashMap<>();       // ✅ §3.8
+        Map<String, Object> qualityResults = new HashMap<>();    // ✅ §3.7
+        Map<String, Object> predictionResults = new HashMap<>(); // ✅ IA prédictive
         int count = 0;
 
         for (GitRepository repo : repos) {
-
             try {
 
                 if (repo.getProvider() == ProviderType.GITHUB
-                        && githubToken != null
-                        && !githubToken.isBlank()) {
+                        && githubToken != null && !githubToken.isBlank()) {
 
                     gitHubService.importBranches(repo, githubToken);
                     gitHubService.importTags(repo, githubToken);
@@ -144,24 +128,22 @@ public class ImportController {
 
                     contributionService.calculateContributions(repo);
 
-                    // ✅ §3.8 — calcul du score de stabilité / hotspots juste après
-                    // l'import, pendant que les données sont fraîches en base.
-                    safeComputeRisk(repo, jwtToken, riskResults);
+                    // ✅ §3.8
+                    RiskAnalysisService.RiskAnalysisResult risk = safeComputeRisk(repo, jwtToken, riskResults);
 
-                    // ✅ §3.7 — scan SonarQube. Isolé dans son propre try/catch :
-                    // un échec (timeout, repo trop volumineux, Sonar indisponible)
-                    // ne doit jamais faire échouer l'analyse Git globale.
+                    // ✅ §3.7
                     String cloneUrl = buildGitHubCloneUrl(repo, githubToken);
-                    safeComputeQuality(repo, cloneUrl, qualityResults);
+                    SonarQubeService.QualityAnalysisResult quality = safeComputeQuality(repo, cloneUrl, qualityResults);
+
+                    // ✅ IA prédictive — combine risk + quality, isolé comme les deux autres
+                    safeComputePrediction(repo, risk, quality, predictionResults);
 
                     repo.updateLastAnalyzed();
                     gitRepositoryRep.save(repo);
-
                     count++;
 
                 } else if (repo.getProvider() == ProviderType.GITLAB
-                        && gitlabToken != null
-                        && !gitlabToken.isBlank()) {
+                        && gitlabToken != null && !gitlabToken.isBlank()) {
 
                     gitLabService.importBranches(repo, gitlabToken);
                     gitLabService.importTags(repo, gitlabToken);
@@ -171,90 +153,93 @@ public class ImportController {
 
                     contributionService.calculateContributions(repo);
 
-                    // ✅ §3.8 — idem pour GitLab
-                    safeComputeRisk(repo, jwtToken, riskResults);
+                    // ✅ §3.8
+                    RiskAnalysisService.RiskAnalysisResult risk = safeComputeRisk(repo, jwtToken, riskResults);
 
-                    // ✅ §3.7 — idem pour GitLab
+                    // ✅ §3.7
                     String cloneUrl = buildGitLabCloneUrl(repo, gitlabToken);
-                    safeComputeQuality(repo, cloneUrl, qualityResults);
+                    SonarQubeService.QualityAnalysisResult quality = safeComputeQuality(repo, cloneUrl, qualityResults);
+
+                    // ✅ IA prédictive
+                    safeComputePrediction(repo, risk, quality, predictionResults);
 
                     repo.updateLastAnalyzed();
                     gitRepositoryRep.save(repo);
-
                     count++;
 
                 } else {
-
-                    errors.add(
-                            repo.getName()
-                                    + ": token non disponible pour "
-                                    + repo.getProvider()
-                    );
+                    errors.add(repo.getName() + ": token non disponible pour " + repo.getProvider());
                 }
 
             } catch (Exception e) {
-
-                System.err.println(
-                        ">>> Erreur repo "
-                                + repo.getName()
-                                + ": "
-                                + e.getMessage()
-                );
-
-                errors.add(
-                        repo.getName()
-                                + ": "
-                                + e.getMessage()
-                );
+                System.err.println(">>> Erreur repo " + repo.getName() + ": " + e.getMessage());
+                errors.add(repo.getName() + ": " + e.getMessage());
             }
         }
 
         Map<String, Object> response = new HashMap<>();
         response.put("repositoriesAnalyzed", count);
         response.put("errors", errors);
-        response.put("riskResults", riskResults);       // ✅ §3.8
-        response.put("qualityResults", qualityResults); // ✅ §3.7
+        response.put("riskResults", riskResults);             // ✅ §3.8
+        response.put("qualityResults", qualityResults);       // ✅ §3.7
+        response.put("predictionResults", predictionResults); // ✅ IA prédictive
 
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * Calcule le score de risque pour un repo et l'ajoute aux résultats à renvoyer.
-     * Isolé dans sa propre méthode avec son propre try/catch : si ce calcul échoue
-     * (ex: gestion-user indisponible pour la séniorité), l'analyse Git du repo
-     * (commits, PR, pushes déjà importés et sauvegardés) reste un succès.
-     */
-    private void safeComputeRisk(GitRepository repo, String jwtToken, Map<String, Object> riskResults) {
+    /** Calcule le score de risque (§3.8). Retourne null si le calcul échoue (isolé, non bloquant). */
+    private RiskAnalysisService.RiskAnalysisResult safeComputeRisk(
+            GitRepository repo, String jwtToken, Map<String, Object> riskResults) {
         try {
             RiskAnalysisService.RiskAnalysisResult risk = riskAnalysisService.analyze(repo.getId(), jwtToken);
             riskResults.put(repo.getName(), risk);
+            return risk;
         } catch (Exception e) {
             System.err.println(">>> Erreur calcul risque pour " + repo.getName() + ": " + e.getMessage());
-            // On ne propage pas l'erreur : le calcul de risque est un enrichissement,
-            // pas une condition de succès de l'analyse Git elle-même.
+            return null;
+        }
+    }
+
+    /** Lance le scan qualité SonarQube (§3.7). Retourne null si le scan échoue (isolé, non bloquant). */
+    private SonarQubeService.QualityAnalysisResult safeComputeQuality(
+            GitRepository repo, String cloneUrl, Map<String, Object> qualityResults) {
+        try {
+            SonarQubeService.QualityAnalysisResult quality = sonarQubeService.analyze(repo, cloneUrl);
+            qualityResults.put(repo.getName(), quality);
+            return quality;
+        } catch (Exception e) {
+            System.err.println(">>> Erreur scan qualité (Sonar) pour " + repo.getName() + ": " + e.getMessage());
+            return null;
         }
     }
 
     /**
-     * Lance le scan SonarQube pour un repo et ajoute le résultat aux résultats à
-     * renvoyer. Isolé de la même façon que safeComputeRisk : un échec du scan
-     * (timeout, token Sonar manquant, repo vide) n'invalide jamais l'analyse Git.
+     * Appelle le microservice IA pour prédire la probabilité que ce repo devienne
+     * CRITICAL dans les 30 prochains jours, à partir des résultats de risque et
+     * de qualité déjà calculés. Isolé comme les deux méthodes précédentes : un
+     * échec du microservice Python n'invalide jamais l'analyse Git globale.
      */
-    private void safeComputeQuality(GitRepository repo, String cloneUrl, Map<String, Object> qualityResults) {
+    private void safeComputePrediction(GitRepository repo,
+                                       RiskAnalysisService.RiskAnalysisResult risk,
+                                       SonarQubeService.QualityAnalysisResult quality,
+                                       Map<String, Object> predictionResults) {
         try {
-            SonarQubeService.QualityAnalysisResult quality = sonarQubeService.analyze(repo, cloneUrl);
-            qualityResults.put(repo.getName(), quality);
+            var predicted = predictionService.predict(repo, risk, quality);
+            if (predicted != null) {
+                predictionResults.put(repo.getName(), Map.of(
+                        "probabilityCritical", predicted.getProbabilityCritical(),
+                        "riskLevel", predicted.getRiskLevel()
+                ));
+            }
         } catch (Exception e) {
-            System.err.println(">>> Erreur scan qualité (Sonar) pour " + repo.getName() + ": " + e.getMessage());
+            System.err.println(">>> Erreur prédiction IA pour " + repo.getName() + ": " + e.getMessage());
         }
     }
 
-    /** Construit l'URL de clone HTTPS authentifiée pour GitHub. */
     private String buildGitHubCloneUrl(GitRepository repo, String token) {
         return "https://" + token + "@github.com/" + repo.getOwner() + "/" + repo.getName() + ".git";
     }
 
-    /** Construit l'URL de clone HTTPS authentifiée pour GitLab. */
     private String buildGitLabCloneUrl(GitRepository repo, String token) {
         return "https://oauth2:" + token + "@gitlab.com/" + repo.getOwner() + "/" + repo.getName() + ".git";
     }
